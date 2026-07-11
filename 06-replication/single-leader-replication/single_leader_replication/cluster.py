@@ -1,0 +1,95 @@
+"""
+cluster.py
+
+Manages a cluster of database nodes.
+
+This module is responsible for coordinating interactions between
+multiple nodes, including leader election and log replication.
+"""
+
+from single_leader_replication.node import Node
+
+class Cluster:
+    def __init__(self, nodes: list[Node], leader_node: Node | None = None) -> None:
+        """
+        Initialize a new cluster with a list of nodes.
+
+        Args:
+            nodes (list[Node]): The list of nodes in the cluster.
+        """
+        
+        self.nodes = nodes
+        self._leader: Node | None = leader_node
+        if leader_node is not None:
+            self._leader = leader_node
+            leader_node.set_role('leader')
+        else:
+            self._leader = None
+
+        self.configure_followers()
+
+    def configure_followers(self) -> None:
+        """
+        Configure the followers for the current leader.
+
+        This method ensures that all nodes in the cluster, except for the leader,
+        are added as followers to the leader node.
+        """
+        if self._leader is None:
+            return
+    
+        for node in self.nodes:
+            if node != self._leader:
+                self._leader.add_follower(node)
+
+    @property
+    def leader(self) -> Node:
+        """
+        Get the current leader of the cluster.
+
+        Returns:
+            Node: The current leader node.
+        """
+        if self._leader is None:
+            raise RuntimeError('No leader is currently set in the cluster.')
+        return self._leader
+
+    def remove_node(self, node: Node) -> None:
+        """
+        Remove a node from the cluster.
+
+        Args:
+            node (Node): The node to remove.
+        """
+        if node in self.nodes:
+            self.nodes.remove(node)
+            if node == self._leader:
+                self._leader = None  # Reset leader if the removed node was the leader
+                self.elect_new_leader()  # Elect a new leader
+    
+    def choose_best_node(self) -> Node:
+        """
+        Choose the best node to become the new leader.
+
+        Returns:
+            Node: The chosen node to become the new leader.
+        """
+        if not self.nodes:
+            raise RuntimeError('No nodes available to choose from.')
+        else: 
+            return max(
+                self.nodes, 
+                key=lambda node: node.last_applied_index
+            )
+    
+    def elect_new_leader(self) -> None:
+        """
+        Elect a new leader for the cluster.
+        """
+        new_leader = self.choose_best_node()
+        
+        new_leader.promote_to_leader()
+        
+        self._leader = new_leader
+        
+        self.configure_followers()
