@@ -3,10 +3,12 @@ from single_leader_replication.replication_log import ReplicationLog
 from single_leader_replication.node import Node
 from single_leader_replication.models import LogEntry
 from single_leader_replication.cluster import Cluster
+from single_leader_replication.network import Network
 
 # Initialize storage and log
 storage = Storage()
 log = ReplicationLog()
+network_1 = Network()
 
 # Test applying log entries to storage
 print('======================================================================================')
@@ -65,8 +67,12 @@ print('Test follower node receiving log entries when write is made to leader')
 print('======================================================================================')
 print('\n')
 
-leader = Node('leader')
-follower = Node()
+network_2 = Network()
+leader = Node(role='leader', network=network_2)
+follower = Node(network=network_2)
+
+network_2.register_node(leader)
+network_2.register_node(follower)
 
 leader.add_follower(follower)
 
@@ -108,9 +114,15 @@ print('Test MULTIPLE follower nodes receiving log entries when write is made to 
 print('======================================================================================')
 print('\n')
 
-leader = Node('leader')
-follower_1 = Node()
-follower_2 = Node()
+network_3 = Network()
+
+leader = Node(role='leader', network=network_3)
+follower_1 = Node(network=network_3)
+follower_2 = Node(network=network_3)
+
+network_3.register_node(leader)
+network_3.register_node(follower_1)
+network_3.register_node(follower_2)
 
 leader.add_follower(follower_1)
 leader.add_follower(follower_2)
@@ -136,8 +148,13 @@ print('Test follower catching up after missing multiple log entries')
 print('======================================================================================')
 print('\n')
 
-leader = Node('leader')
-follower = Node()
+network_4 = Network()
+
+leader = Node(role='leader', network=network_4)
+follower = Node(network=network_4)
+
+network_4.register_node(leader)
+network_4.register_node(follower)
 
 leader.add_follower(follower)
 
@@ -178,8 +195,13 @@ print('Test follower ignoring duplicate log entries')
 print('======================================================================================')
 print('\n')
 
-leader = Node('leader')
-follower = Node()
+network_5 = Network()
+
+leader = Node(role='leader', network=network_5)
+follower = Node(network=network_5)
+
+network_5.register_node(leader)
+network_5.register_node(follower)
 
 leader.add_follower(follower)
 
@@ -207,15 +229,20 @@ print('Test multiple followers staying synchronized')
 print('======================================================================================')
 print('\n')
 
-leader = Node('leader')
+network_6 = Network()
+
+leader = Node(role='leader', network=network_6)
 followers = [
-    Node(),
-    Node(),
-    Node()
+    Node(network=network_6),
+    Node(network=network_6),
+    Node(network=network_6)
 ]
 
 for follower in followers:
     leader.add_follower(follower)
+    network_6.register_node(follower)
+    
+network_6.register_node(leader)
 
 leader.write('x', 100)
 leader.write('y', 200)
@@ -235,12 +262,10 @@ print('Test leader failover')
 print('======================================================================================')
 print('\n')
 
-
 # Create nodes
 node_1 = Node()
 node_2 = Node()
 node_3 = Node()
-
 
 # Create cluster with node_1 as leader
 cluster = Cluster(
@@ -311,10 +336,29 @@ print('\n')
 # Find the remaining follower
 
 remaining_nodes = [
-    node for node in cluster.nodes
+    node for node in cluster._nodes
     if node is not cluster.leader
 ]
 
 
 print('> Remaining follower should receive new write:')
 print(remaining_nodes[0].read('baz'))
+print('\n')
+
+print('======================================================================================')
+print('Test network send and receive')
+print('======================================================================================')
+print('\n')
+
+network_1 = Network()
+leader = Node(role='leader', network=network_1)
+follower = Node(network=network_1)
+
+network_1.register_node(leader)
+network_1.register_node(follower)
+
+entry = leader.write('foo', 'bar')
+network_1.send(leader, follower, entry)
+
+print('> After network send, follower should have foo=bar:')
+print(follower.read('foo'))  # Should print 'bar'

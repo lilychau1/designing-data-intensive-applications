@@ -14,6 +14,7 @@ Later in the project, nodes will also replicate log entries to follower
 nodes. 
 """
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from typing import Any
 
@@ -21,22 +22,40 @@ from single_leader_replication.storage import Storage
 from single_leader_replication.replication_log import ReplicationLog
 from single_leader_replication.models import LogEntry
 
+if TYPE_CHECKING:
+    from single_leader_replication.network import Network
+
+import uuid
+
 
 class Node():
     """
     A single database node. 
     """
 
-    def __init__(self, role: str = 'follower') -> None:
+    def __init__(self, role: str = 'follower', id: str | None = None, network: Network | None = None) -> None:
         """
         Initialize a new database node.
         """
+
         self._storage = Storage()
         self._log = ReplicationLog()
         self._last_applied_index = 0  # Track the index of the last applied log entry
         self._followers: list[Node] = []  # List of follower nodes for replication
         self._role = role  # Role of the node: 'leader' or 'follower'
-    
+        self._id = id or str(uuid.uuid4()) # Unique identifier for the node. "" will also be treated as None and a new UUID will be generated.
+        self._network = network  # Network for sending messages between nodes
+
+    @property
+    def id(self) -> str:
+        """
+        Get the unique identifier for the node.
+
+        Returns:
+            str: The unique identifier for the node.
+        """
+        return self._id
+
     @property
     def last_applied_index(self) -> int:
         """
@@ -94,6 +113,25 @@ class Node():
             if follower not in self._followers:
                 self._followers.append(follower)
 
+    def set_network(self, network: Network) -> None:
+        """
+        Set the network for the node.
+
+        Args:
+            network (Network): The network to set.
+        """
+        self._network = network
+        
+    @property
+    def network(self) -> Network | None:
+        """
+        Get the network for the node.
+
+        Returns:
+            Network | None: The network for the node, or None if not set.
+        """
+        return self._network
+    
     def promote_to_leader(self) -> None:
         """
         Promote this node to a leader role.
@@ -129,9 +167,12 @@ class Node():
         each follower node. It ensures that followers stay in sync with the
         leader's state.
         """
+        if self._network is None:
+            raise ValueError("Network is not set for the leader node.")
         for log_entry in self._log.entries:
             if log_entry.index > follower.last_applied_index:
-                follower.receive_log_entry(log_entry)
+                # Send the log entry to the follower node through the network
+                self._network.send(sender=self, receiver=follower, log_entry_message=log_entry)
 
     def write(self, key: str, value: Any) -> LogEntry:
         """
