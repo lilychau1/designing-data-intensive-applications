@@ -36,18 +36,31 @@ It currently demonstrates:
 - selecting the most up-to-date remaining node after leader removal; and
 - a small FastAPI interface for writing and reading from the leader.
 
-### Run it
+### Install and test
 
 Requirements: Python 3.12 and [Poetry](https://python-poetry.org/).
 
 ```bash
 cd 06-replication/single-leader-replication
 poetry install
-PYTHONPATH=. poetry run python tests/test.py
+poetry run pytest
 ```
 
-The demonstration script prints the outcomes of storage, replication,
-catch-up, duplicate-delivery, and failover scenarios.
+Run an individual test module while developing with, for example:
+
+```bash
+poetry run pytest tests/unit/test_node.py -v
+```
+
+Run the current unit suite with:
+
+```bash
+poetry run pytest tests/unit
+```
+
+The test suite covers storage, replication-log ordering, node behaviour,
+network delivery, and cluster failover. HTTP integration tests will live in
+`tests/integration` as separate-process replication is added.
 
 ### Run the API
 
@@ -78,7 +91,9 @@ curl http://127.0.0.1:8000/get/colour
 │   ├── node.py             # Node state and replication behaviour
 │   ├── replication_log.py  # Ordered write log
 │   └── storage.py          # In-memory key-value state
-└── tests/test.py           # Executable learning scenarios
+└── tests/
+    ├── unit/               # Fast, in-memory behaviour tests
+    └── integration/        # HTTP/separate-process replication tests
 ```
 
 ## Current limitations
