@@ -8,6 +8,7 @@ multiple nodes, including leader election and log replication.
 """
 
 from single_leader_replication.node import Node
+from single_leader_replication.network import Network
 
 class Cluster:
     def __init__(self, nodes: list[Node], leader_node: Node | None = None) -> None:
@@ -17,8 +18,7 @@ class Cluster:
         Args:
             nodes (list[Node]): The list of nodes in the cluster.
         """
-        
-        self.nodes = nodes
+        self._nodes = nodes
         self._leader: Node | None = leader_node
         if leader_node is not None:
             self._leader = leader_node
@@ -27,6 +27,12 @@ class Cluster:
             self._leader = None
 
         self.configure_followers()
+        
+        self._network: Network = Network()
+        
+        for node in self._nodes:
+            self._network.register_node(node)
+            node.set_network(self._network)
 
     def configure_followers(self) -> None:
         """
@@ -38,7 +44,7 @@ class Cluster:
         if self._leader is None:
             return
     
-        for node in self.nodes:
+        for node in self._nodes:
             if node != self._leader:
                 self._leader.add_follower(node)
 
@@ -61,8 +67,8 @@ class Cluster:
         Args:
             node (Node): The node to remove.
         """
-        if node in self.nodes:
-            self.nodes.remove(node)
+        if node in self._nodes:
+            self._nodes.remove(node)
             if node == self._leader:
                 self._leader = None  # Reset leader if the removed node was the leader
                 self.elect_new_leader()  # Elect a new leader
@@ -74,11 +80,11 @@ class Cluster:
         Returns:
             Node: The chosen node to become the new leader.
         """
-        if not self.nodes:
+        if not self._nodes:
             raise RuntimeError('No nodes available to choose from.')
         else: 
             return max(
-                self.nodes, 
+                self._nodes, 
                 key=lambda node: node.last_applied_index
             )
     
