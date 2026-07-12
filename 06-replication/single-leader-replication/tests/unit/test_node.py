@@ -1,4 +1,10 @@
-"""Unit tests for the Node state machine and replication behaviour."""
+
+"""
+test_node.py
+
+Unit tests for the Node state machine and replication behaviour.
+"""
+
 
 from unittest.mock import Mock
 
@@ -9,10 +15,10 @@ from single_leader_replication.node import Node
 
 
 def test_node_uses_supplied_id_and_has_follower_defaults() -> None:
-    node = Node(id="node-1")
+    node = Node(id='node-1')
 
-    assert node.id == "node-1"
-    assert node.role == "follower"
+    assert node.id == 'node-1'
+    assert node.role == 'follower'
     assert node.network is None
     assert node.last_applied_index == 0
     assert node.log == []
@@ -24,7 +30,7 @@ def test_node_generates_an_id_when_one_is_not_supplied() -> None:
     assert node.id
 
 
-@pytest.mark.parametrize("role", ["leader", "follower"])
+@pytest.mark.parametrize('role', ['leader', 'follower'])
 def test_set_role_accepts_supported_roles(role: str) -> None:
     node = Node()
 
@@ -36,33 +42,33 @@ def test_set_role_accepts_supported_roles(role: str) -> None:
 def test_set_role_rejects_an_unknown_role() -> None:
     node = Node()
 
-    with pytest.raises(ValueError, match="Role must be either"):
-        node.set_role("candidate")
+    with pytest.raises(ValueError, match='Role must be either'):
+        node.set_role('candidate')
 
 
 def test_only_a_leader_can_add_a_follower() -> None:
     follower = Node()
 
-    with pytest.raises(ValueError, match="Only leader nodes"):
+    with pytest.raises(ValueError, match='Only leader nodes'):
         follower.add_follower(Node())
 
 
 def test_leader_cannot_add_itself_as_a_follower() -> None:
-    leader = Node(role="leader")
+    leader = Node(role='leader')
 
-    with pytest.raises(ValueError, match="cannot be its own follower"):
+    with pytest.raises(ValueError, match='cannot be its own follower'):
         leader.add_follower(leader)
 
 
 def test_adding_the_same_follower_twice_only_replicates_once() -> None:
     transport = Mock()
-    leader = Node(role="leader", network=transport)
+    leader = Node(role='leader', network=transport)
     follower = Node()
 
     leader.add_follower(follower)
     leader.add_follower(follower)
 
-    entry = leader.write("colour", "blue")
+    entry = leader.write('colour', 'blue')
 
     transport.send.assert_called_once_with(
         sender=leader,
@@ -87,57 +93,57 @@ def test_promoting_a_node_makes_it_leader_and_clears_its_followers() -> None:
     node.add_follower(Node())
 
     node.promote_to_leader()
-    node.write("colour", "blue")
+    node.write('colour', 'blue')
 
-    assert node.role == "leader"
+    assert node.role == 'leader'
     transport.send.assert_not_called()
 
 
 def test_receive_log_entry_applies_the_next_entry() -> None:
     follower = Node()
-    entry = LogEntry(index=1, operation="SET", key="colour", value="blue")
+    entry = LogEntry(index=1, operation='SET', key='colour', value='blue')
 
     follower.receive_log_entry(entry)
 
-    assert follower.read("colour") == "blue"
+    assert follower.read('colour') == 'blue'
     assert follower.last_applied_index == 1
     assert follower.log == [entry]
 
 
 def test_receive_log_entry_ignores_a_duplicate() -> None:
     follower = Node()
-    first_entry = LogEntry(index=1, operation="SET", key="colour", value="blue")
-    duplicate_entry = LogEntry(index=1, operation="SET", key="colour", value="green")
+    first_entry = LogEntry(index=1, operation='SET', key='colour', value='blue')
+    duplicate_entry = LogEntry(index=1, operation='SET', key='colour', value='green')
     follower.receive_log_entry(first_entry)
 
     follower.receive_log_entry(duplicate_entry)
 
-    assert follower.read("colour") == "blue"
+    assert follower.read('colour') == 'blue'
     assert follower.last_applied_index == 1
     assert follower.log == [first_entry]
 
 
 def test_receive_log_entry_rejects_an_out_of_order_entry() -> None:
     follower = Node()
-    entry = LogEntry(index=2, operation="SET", key="colour", value="blue")
+    entry = LogEntry(index=2, operation='SET', key='colour', value='blue')
 
-    with pytest.raises(ValueError, match="out-of-order"):
+    with pytest.raises(ValueError, match='out-of-order'):
         follower.receive_log_entry(entry)
 
 
 def test_sync_follower_requires_a_network() -> None:
-    leader = Node(role="leader")
+    leader = Node(role='leader')
 
-    with pytest.raises(ValueError, match="Network is not set"):
+    with pytest.raises(ValueError, match='Network is not set'):
         leader.sync_follower(Node())
 
 
 def test_sync_follower_sends_only_entries_the_follower_has_not_applied() -> None:
     transport = Mock()
-    leader = Node(role="leader")
+    leader = Node(role='leader')
     follower = Node()
-    first_entry = leader.write("first", 1)
-    second_entry = leader.write("second", 2)
+    first_entry = leader.write('first', 1)
+    second_entry = leader.write('second', 2)
     follower.receive_log_entry(first_entry)
     leader.set_network(transport)
 
@@ -153,22 +159,22 @@ def test_sync_follower_sends_only_entries_the_follower_has_not_applied() -> None
 def test_follower_cannot_accept_client_writes() -> None:
     follower = Node()
 
-    with pytest.raises(ValueError, match="Only leader nodes"):
-        follower.write("colour", "blue")
+    with pytest.raises(ValueError, match='Only leader nodes'):
+        follower.write('colour', 'blue')
 
 
 def test_leader_write_appends_and_applies_a_log_entry_locally() -> None:
-    leader = Node(role="leader")
+    leader = Node(role='leader')
 
-    entry = leader.write("colour", "blue")
+    entry = leader.write('colour', 'blue')
 
-    assert entry == LogEntry(index=1, operation="SET", key="colour", value="blue")
+    assert entry == LogEntry(index=1, operation='SET', key='colour', value='blue')
     assert leader.log == [entry]
     assert leader.last_applied_index == 1
-    assert leader.read("colour") == "blue"
+    assert leader.read('colour') == 'blue'
 
 
 def test_read_returns_none_for_a_missing_key() -> None:
     node = Node()
 
-    assert node.read("missing") is None
+    assert node.read('missing') is None
