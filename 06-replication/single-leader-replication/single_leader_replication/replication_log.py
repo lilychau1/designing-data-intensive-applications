@@ -39,3 +39,18 @@ class ReplicationLog:
             raise ValueError(f'Log entry index {log_entry.index} is not the next expected index {len(self.entries) + 1}.')
         else:
             self.entries.append(log_entry)
+            
+    def get(self, index: int) -> LogEntry | None:
+        """
+        Retrieve a log entry by its index.
+
+        Args:
+            index (int): The index of the log entry to retrieve.
+
+        Returns:
+            LogEntry | None: The log entry if found, otherwise None.
+        """
+        if 1 <= index <= len(self.entries):
+            return self.entries[index - 1]
+        else:
+            return None
