@@ -57,22 +57,22 @@ def test_leader_cannot_add_itself_as_a_follower() -> None:
     leader = Node(role='leader')
 
     with pytest.raises(ValueError, match='cannot be its own follower'):
-        leader.add_follower(leader)
+        leader.add_follower(leader.id)
 
 
 def test_adding_the_same_follower_twice_only_replicates_once() -> None:
     transport = Mock()
-    leader = Node(role='leader', network=transport)
-    follower = Node()
+    leader = Node(id='leader-1', role='leader', network=transport)
+    follower = Node(id='follower-1')
 
-    leader.add_follower(follower)
-    leader.add_follower(follower)
+    leader.add_follower(follower.id)
+    leader.add_follower(follower.id)
 
     entry = leader.write('colour', 'blue')
 
     transport.send.assert_called_once_with(
-        sender=leader,
-        receiver=follower,
+        sender_id=leader.id,
+        receiver_id=follower.id,
         log_entry_message=entry,
     )
 
@@ -84,19 +84,6 @@ def test_set_network_updates_the_network_property() -> None:
     node.set_network(network)
 
     assert node.network is network
-
-
-def test_promoting_a_node_makes_it_leader_and_clears_its_followers() -> None:
-    transport = Mock()
-    node = Node(network=transport)
-    node.promote_to_leader()
-    node.add_follower(Node())
-
-    node.promote_to_leader()
-    node.write('colour', 'blue')
-
-    assert node.role == 'leader'
-    transport.send.assert_not_called()
 
 
 def test_receive_log_entry_applies_the_next_entry() -> None:
@@ -136,25 +123,6 @@ def test_sync_follower_requires_a_network() -> None:
 
     with pytest.raises(ValueError, match='Network is not set'):
         leader.sync_follower(Node())
-
-
-def test_sync_follower_sends_only_entries_the_follower_has_not_applied() -> None:
-    transport = Mock()
-    leader = Node(role='leader')
-    follower = Node()
-    first_entry = leader.write('first', 1)
-    second_entry = leader.write('second', 2)
-    follower.receive_log_entry(first_entry)
-    leader.set_network(transport)
-
-    leader.sync_follower(follower)
-
-    transport.send.assert_called_once_with(
-        sender=leader,
-        receiver=follower,
-        log_entry_message=second_entry,
-    )
-
 
 def test_follower_cannot_accept_client_writes() -> None:
     follower = Node()

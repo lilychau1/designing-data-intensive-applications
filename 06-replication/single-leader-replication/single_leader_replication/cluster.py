@@ -25,14 +25,14 @@ class Cluster:
             leader_node.set_role('leader')
         else:
             self._leader = None
-
-        self.configure_followers()
         
         self._network: Network = Network()
         
         for node in self._nodes:
             self._network.register_node(node)
             node.set_network(self._network)
+
+        self.configure_followers()
 
     def configure_followers(self) -> None:
         """
@@ -46,7 +46,7 @@ class Cluster:
     
         for node in self._nodes:
             if node != self._leader:
-                self._leader.add_follower(node)
+                self._leader.add_follower(node.id)
 
     @property
     def leader(self) -> Node:

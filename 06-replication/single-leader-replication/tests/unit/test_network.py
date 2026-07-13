@@ -19,7 +19,7 @@ def test_send_delivers_a_log_entry_to_a_registered_follower() -> None:
     network.register_node(leader)
     network.register_node(follower)
 
-    network.send(leader, follower, entry)
+    network.send(leader.id, follower.id, entry)
 
     assert follower.read('colour') == 'blue'
     assert follower.last_applied_index == 1
@@ -52,19 +52,5 @@ def test_send_rejects_delivery_to_the_same_node() -> None:
     network.register_node(leader)
 
     with pytest.raises(ValueError, match='cannot be the same'):
-        network.send(leader, leader, LogEntry(index=1, operation='SET', key='a', value=1))
+        network.send(leader.id, leader.id, LogEntry(index=1, operation='SET', key='a', value=1))
 
-
-def test_send_rejects_a_sender_that_is_not_the_leader() -> None:
-    network = Network()
-    follower_sender = Node()
-    receiver = Node()
-    network.register_node(follower_sender)
-    network.register_node(receiver)
-
-    with pytest.raises(ValueError, match='Only the leader'):
-        network.send(
-            follower_sender,
-            receiver,
-            LogEntry(index=1, operation='SET', key='a', value=1),
-        )

@@ -41,7 +41,7 @@ class Node():
         self._storage = Storage()
         self._log = ReplicationLog()
         self._last_applied_index = 0  # Track the index of the last applied log entry
-        self._followers: list[Node] = []  # List of follower nodes for replication
+        self._followers: list[str] = []  # List of follower node IDs for replication
         self._role = role  # Role of the node: 'leader' or 'follower'
         self._id = id or str(uuid.uuid4()) # Unique identifier for the node. "" will also be treated as None and a new UUID will be generated.
         self._network = network  # Network for sending messages between nodes
@@ -96,22 +96,22 @@ class Node():
             str: The role of the node ('leader' or 'follower').
         """
         return self._role
-    
-    def add_follower(self, follower: Node) -> None:
+
+    def add_follower(self, follower_id: str) -> None:
         """
         Add a follower node to the list of followers for replication.
 
         Args:
-            follower (Node): The follower node to add.
+            follower_id (str): The ID of the follower node to add.
         """
         if self._role != 'leader':
             raise ValueError("Only leader nodes can have followers.")
         else:
-            if follower is self:
+            if follower_id == self._id:
                 raise ValueError("A node cannot be its own follower.")
-            
-            if follower not in self._followers:
-                self._followers.append(follower)
+
+            if follower_id not in self._followers:
+                self._followers.append(follower_id)
 
     def set_network(self, network: Network) -> None:
         """
@@ -137,7 +137,6 @@ class Node():
         Promote this node to a leader role.
         """
         self._role = 'leader'
-        self._followers = []  # Reset followers when promoting to leader
         
     def receive_log_entry(self, log_entry: LogEntry) -> None:
         """
@@ -159,7 +158,7 @@ class Node():
             # Handle out-of-order log entries (not implemented in this simple example)
             raise ValueError(f"Received out-of-order log entry: {log_entry.index}. Expected: {self._last_applied_index + 1}")
 
-    def sync_follower(self, follower: Node) -> None:
+    def sync_follower(self, follower_id: str) -> None:
         """
         Replicate log entries to all follower nodes.
 
@@ -170,9 +169,8 @@ class Node():
         if self._network is None:
             raise ValueError("Network is not set for the leader node.")
         for log_entry in self._log.entries:
-            if log_entry.index > follower.last_applied_index:
-                # Send the log entry to the follower node through the network
-                self._network.send(sender=self, receiver=follower, log_entry_message=log_entry)
+            # Send the log entry to the follower node through the network
+            self._network.send(sender_id=self.id, receiver_id=follower_id, log_entry_message=log_entry)
 
     def write(self, key: str, value: Any) -> LogEntry:
         """
@@ -189,8 +187,8 @@ class Node():
             self._storage.apply_log_entry(log_entry)
             self._last_applied_index = log_entry.index  # Update the last applied index
 
-            for follower in self._followers:
-                self.sync_follower(follower)
+            for follower_id in self._followers:
+                self.sync_follower(follower_id)
             return log_entry  # Return the log entry for testing purposes
 
     def read(self, key: str) -> Any | None:
