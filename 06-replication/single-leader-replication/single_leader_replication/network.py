@@ -40,6 +40,9 @@ class Network:
         Args:
             node (Node): The node to register.
         """
+        if node.id in self._nodes: 
+            raise ValueError(f"Node with ID {node.id} is already registered.")
+        
         self._nodes[node.id] = node
 
     def send(self, sender_id: str, receiver_id: str, log_entry_message: LogEntry) -> None:

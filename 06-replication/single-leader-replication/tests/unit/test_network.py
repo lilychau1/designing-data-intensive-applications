@@ -25,6 +25,19 @@ def test_send_delivers_a_log_entry_to_a_registered_follower() -> None:
     assert follower.last_applied_index == 1
     assert follower.log == [entry]
 
+def test_follower_receives_replication_entry():
+    follower = Node()
+
+    entry = LogEntry(
+        index=1,
+        operation="SET",
+        key="colour",
+        value="blue",
+    )
+
+    follower.receive_log_entry(entry)
+
+    assert follower.read("colour") == "blue"
 
 def test_send_rejects_an_unregistered_sender() -> None:
     network = Network()
@@ -54,3 +67,12 @@ def test_send_rejects_delivery_to_the_same_node() -> None:
     with pytest.raises(ValueError, match='cannot be the same'):
         network.send(leader.id, leader.id, LogEntry(index=1, operation='SET', key='a', value=1))
 
+def test_register_node_rejects_duplicate_node_ids() -> None:
+    network = Network()
+    node1 = Node()
+    node2 = Node(id=node1.id)  # Create a second node with the same ID as node1
+
+    network.register_node(node1)
+
+    with pytest.raises(ValueError, match='already registered'):
+        network.register_node(node2)

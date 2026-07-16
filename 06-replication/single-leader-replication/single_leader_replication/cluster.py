@@ -84,8 +84,11 @@ class Cluster:
             raise RuntimeError('No nodes available to choose from.')
         else: 
             return max(
-                self._nodes, 
-                key=lambda node: node.last_applied_index
+                self._nodes,
+                key=lambda node: (
+                    node.last_applied_index,
+                    node.id,
+                ),
             )
     
     def elect_new_leader(self) -> None:
@@ -93,9 +96,13 @@ class Cluster:
         Elect a new leader for the cluster.
         """
         new_leader = self.choose_best_node()
-        
+
+        if self._leader is not None and self._leader is not new_leader:
+            self._leader.set_role("follower")
+
         new_leader.promote_to_leader()
-        
+
         self._leader = new_leader
-        
+
+        new_leader.clear_followers()
         self.configure_followers()

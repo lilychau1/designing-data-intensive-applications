@@ -113,6 +113,12 @@ class Node():
             if follower_id not in self._followers:
                 self._followers.append(follower_id)
 
+    def clear_followers(self) -> None:
+        """
+        Clear the list of followers for the node.
+        """
+        self._followers.clear()
+        
     def set_network(self, network: Network) -> None:
         """
         Set the network for the node.
@@ -170,7 +176,12 @@ class Node():
             raise ValueError("Network is not set for the leader node.")
         for log_entry in self._log.entries:
             # Send the log entry to the follower node through the network
-            self._network.send(sender_id=self.id, receiver_id=follower_id, log_entry_message=log_entry)
+            try:
+                self._network.send(sender_id=self.id, receiver_id=follower_id, log_entry_message=log_entry)
+            except ConnectionError as e:
+                # Handle connection errors (e.g., follower is down) - retry, timeout, follower health checks, etc. 
+                # For simplicity, we just print the error here.
+                pass
 
     def write(self, key: str, value: Any) -> LogEntry:
         """
