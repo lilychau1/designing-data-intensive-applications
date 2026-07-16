@@ -67,11 +67,15 @@ class Cluster:
         Args:
             node (Node): The node to remove.
         """
-        if node in self._nodes:
-            self._nodes.remove(node)
-            if node == self._leader:
-                self._leader = None  # Reset leader if the removed node was the leader
-                self.elect_new_leader()  # Elect a new leader
+        if node not in self._nodes:
+            return
+
+        was_leader = node == self._leader
+
+        self._nodes.remove(node)
+
+        if was_leader:
+            self.elect_new_leader()
     
     def choose_best_node(self) -> Node:
         """
@@ -97,7 +101,7 @@ class Cluster:
         """
         new_leader = self.choose_best_node()
 
-        if self._leader is not None and self._leader is not new_leader:
+        if self._leader is not None:
             self._leader.set_role("follower")
 
         new_leader.promote_to_leader()

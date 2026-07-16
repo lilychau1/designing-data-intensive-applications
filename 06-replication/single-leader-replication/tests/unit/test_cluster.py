@@ -11,9 +11,11 @@ from single_leader_replication.cluster import Cluster
 from single_leader_replication.models import LogEntry
 from single_leader_replication.node import Node
 
+from tests.helpers import make_node
+
 
 def make_nodes() -> tuple[Node, Node, Node]:
-    return Node(id='node-1'), Node(id='node-2'), Node(id='node-3')
+    return make_node('node-1'), make_node('node-2'), make_node('node-3')
 
 
 def test_cluster_configures_the_supplied_leader_and_shared_network() -> None:
@@ -40,7 +42,7 @@ def test_cluster_leader_write_replicates_to_all_followers() -> None:
 
 
 def test_leader_property_raises_when_no_leader_is_configured() -> None:
-    cluster = Cluster([Node()])
+    cluster = Cluster([make_node('node-1')])
 
     with pytest.raises(RuntimeError, match='No leader'):
         _ = cluster.leader
@@ -83,18 +85,41 @@ def test_removing_a_follower_keeps_the_current_leader() -> None:
     assert cluster.leader is leader
 
 
-def test_removing_a_leader_elects_a_new_leader_and_replication_continues() -> None:
-    old_leader, new_leader, remaining_follower = make_nodes()
+def test_removing_a_leader_elects_the_most_up_to_date_node_and_replication_continues() -> None:
+    old_leader, node_two, node_three = make_nodes()
+
     cluster = Cluster(
-        [old_leader, new_leader, remaining_follower],
+        [old_leader, node_two, node_three],
         leader_node=old_leader,
     )
+
     cluster.leader.write('before-failover', 1)
 
-    cluster.remove_node(old_leader)
-    cluster.leader.write('after-failover', 2)
+    # Catch node_three up with leader
+    node_three.receive_log_entry(
+        LogEntry(
+            index=1,
+            operation='SET',
+            key='before-failover',
+            value=1,
+        )
+    )
 
-    assert cluster.leader is new_leader
-    assert new_leader.role == 'leader'
-    assert new_leader.read('before-failover') == 1
-    assert remaining_follower.read('after-failover') == 2
+    # Give node_three a newer entry
+    node_three.receive_log_entry(
+        LogEntry(
+            index=2,
+            operation='SET',
+            key='latest',
+            value=2,
+        )
+    )
+
+    cluster.remove_node(old_leader)
+
+    assert cluster.leader is node_three
+    assert node_three.role == 'leader'
+
+    cluster.leader.write('after-failover', 3)
+
+    assert node_two.read('after-failover') == 3

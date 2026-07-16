@@ -21,30 +21,40 @@ from typing import Any
 from single_leader_replication.storage import Storage
 from single_leader_replication.replication_log import ReplicationLog
 from single_leader_replication.models import LogEntry
+from single_leader_replication.config import Config
 
 if TYPE_CHECKING:
     from single_leader_replication.network import Network
-
-import uuid
-
 
 class Node():
     """
     A single database node. 
     """
 
-    def __init__(self, role: str = 'follower', id: str | None = None, network: Network | None = None) -> None:
+    def __init__(
+        self,
+        config: Config, 
+        role: str = 'follower', 
+        network: Network | None = None
+    ) -> None:
         """
         Initialize a new database node.
         """
 
+        # Storage and replication log
         self._storage = Storage()
         self._log = ReplicationLog()
+        
+        # Node state
         self._last_applied_index = 0  # Track the index of the last applied log entry
         self._followers: list[str] = []  # List of follower node IDs for replication
+        
+        # Node identification and role
+        self._config = config
         self._role = role  # Role of the node: 'leader' or 'follower'
-        self._id = id or str(uuid.uuid4()) # Unique identifier for the node. "" will also be treated as None and a new UUID will be generated.
-        self._network = network  # Network for sending messages between nodes
+
+        # Network for sending messages between nodes
+        self._network = network
 
     @property
     def id(self) -> str:
@@ -54,7 +64,7 @@ class Node():
         Returns:
             str: The unique identifier for the node.
         """
-        return self._id
+        return self._config.node_id
 
     @property
     def last_applied_index(self) -> int:
@@ -75,6 +85,26 @@ class Node():
             list[LogEntry]: The list of log entries.
         """
         return self._log.entries
+
+    @property
+    def address(self) -> str:
+        """
+        Get the network address of the node.
+
+        Returns:
+            str: The network address of the node.
+        """
+        return self._config.address
+    
+    @property
+    def peers(self) -> dict[str, str]:
+        """
+        Get the dictionary of peer nodes.
+
+        Returns:
+            dict[str, str]: A dictionary mapping peer node IDs to their addresses.
+        """
+        return self._config.peers
     
     def set_role(self, role: str) -> None:
         """
@@ -107,7 +137,7 @@ class Node():
         if self._role != 'leader':
             raise ValueError("Only leader nodes can have followers.")
         else:
-            if follower_id == self._id:
+            if follower_id == self.id:
                 raise ValueError("A node cannot be its own follower.")
 
             if follower_id not in self._followers:

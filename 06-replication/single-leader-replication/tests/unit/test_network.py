@@ -8,13 +8,14 @@ import pytest
 
 from single_leader_replication.models import LogEntry
 from single_leader_replication.network import Network
-from single_leader_replication.node import Node
+
+from tests.helpers import make_node
 
 
 def test_send_delivers_a_log_entry_to_a_registered_follower() -> None:
     network = Network()
-    leader = Node(role='leader')
-    follower = Node()
+    leader = make_node(node_id='leader-1', role='leader')
+    follower = make_node('follower-1')
     entry = LogEntry(index=1, operation='SET', key='colour', value='blue')
     network.register_node(leader)
     network.register_node(follower)
@@ -26,7 +27,7 @@ def test_send_delivers_a_log_entry_to_a_registered_follower() -> None:
     assert follower.log == [entry]
 
 def test_follower_receives_replication_entry():
-    follower = Node()
+    follower = make_node('follower-1')
 
     entry = LogEntry(
         index=1,
@@ -41,8 +42,8 @@ def test_follower_receives_replication_entry():
 
 def test_send_rejects_an_unregistered_sender() -> None:
     network = Network()
-    leader = Node(role='leader')
-    follower = Node()
+    leader = make_node(node_id='leader-1', role='leader')
+    follower = make_node('follower-1')
     network.register_node(follower)
 
     with pytest.raises(ValueError, match='must be registered'):
@@ -51,8 +52,8 @@ def test_send_rejects_an_unregistered_sender() -> None:
 
 def test_send_rejects_an_unregistered_receiver() -> None:
     network = Network()
-    leader = Node(role='leader')
-    follower = Node()
+    leader = make_node(node_id='leader-1', role='leader')
+    follower = make_node('follower-1')
     network.register_node(leader)
 
     with pytest.raises(ValueError, match='must be registered'):
@@ -61,7 +62,7 @@ def test_send_rejects_an_unregistered_receiver() -> None:
 
 def test_send_rejects_delivery_to_the_same_node() -> None:
     network = Network()
-    leader = Node(role='leader')
+    leader = make_node(node_id='leader-1', role='leader')
     network.register_node(leader)
 
     with pytest.raises(ValueError, match='cannot be the same'):
@@ -69,8 +70,8 @@ def test_send_rejects_delivery_to_the_same_node() -> None:
 
 def test_register_node_rejects_duplicate_node_ids() -> None:
     network = Network()
-    node1 = Node()
-    node2 = Node(id=node1.id)  # Create a second node with the same ID as node1
+    node1 = make_node('follower-1')
+    node2 = make_node(node1.id)  # Create a second node with the same ID as node1
 
     network.register_node(node1)
 
