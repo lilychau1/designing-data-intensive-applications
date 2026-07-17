@@ -20,18 +20,23 @@ class Cluster:
         """
         self._nodes = nodes
         self._leader: Node | None = leader_node
-        if leader_node is not None:
-            self._leader = leader_node
-            leader_node.set_role('leader')
-        else:
-            self._leader = None
-        
-        self._network: Network = Network()
-        
+
+        # Create the shared network.
+        self._network = Network()
+
+        # Register every node on the network and reset its role.
         for node in self._nodes:
             self._network.register_node(node)
             node.set_network(self._network)
 
+            node.demote_to_follower()
+            node.clear_followers()
+
+        # Promote the supplied leader.
+        if self._leader is not None:
+            self._leader.promote_to_leader()
+
+        # Configure replication.
         self.configure_followers()
 
     def configure_followers(self) -> None:
@@ -43,9 +48,11 @@ class Cluster:
         """
         if self._leader is None:
             return
-    
+
+        self._leader.clear_followers()
+
         for node in self._nodes:
-            if node != self._leader:
+            if node is not self._leader:
                 self._leader.add_follower(node.id)
 
     @property
@@ -73,6 +80,7 @@ class Cluster:
         was_leader = node == self._leader
 
         self._nodes.remove(node)
+        self._network.unregister_node(node.id)
 
         if was_leader:
             self.elect_new_leader()
@@ -102,11 +110,9 @@ class Cluster:
         new_leader = self.choose_best_node()
 
         if self._leader is not None:
-            self._leader.set_role("follower")
+            self._leader.demote_to_follower()
 
         new_leader.promote_to_leader()
-
         self._leader = new_leader
 
-        new_leader.clear_followers()
         self.configure_followers()

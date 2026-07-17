@@ -126,7 +126,16 @@ class Node():
             str: The role of the node ('leader' or 'follower').
         """
         return self._role
+    
+    def _require_leader(self) -> None:
+        """Ensure the node is a leader.
 
+        Raises:
+            ValueError: If the node is not a leader.
+        """
+        if self._role != "leader":
+            raise ValueError("Only leader nodes can perform this operation.")
+        
     def add_follower(self, follower_id: str) -> None:
         """
         Add a follower node to the list of followers for replication.
@@ -134,14 +143,13 @@ class Node():
         Args:
             follower_id (str): The ID of the follower node to add.
         """
-        if self._role != 'leader':
-            raise ValueError("Only leader nodes can have followers.")
-        else:
-            if follower_id == self.id:
-                raise ValueError("A node cannot be its own follower.")
+        self._require_leader()
+        
+        if follower_id == self.id:
+            raise ValueError("A node cannot be its own follower.")
 
-            if follower_id not in self._followers:
-                self._followers.append(follower_id)
+        if follower_id not in self._followers:
+            self._followers.append(follower_id)
 
     def clear_followers(self) -> None:
         """
@@ -173,7 +181,15 @@ class Node():
         Promote this node to a leader role.
         """
         self._role = 'leader'
+        self.clear_followers()
         
+    def demote_to_follower(self) -> None:
+        """
+        Demote this node to a follower role.
+        """
+        self._role = 'follower'
+        self.clear_followers()
+
     def receive_log_entry(self, log_entry: LogEntry) -> None:
         """
         Receive a log entry from the leader and apply it to the local storage.
@@ -186,15 +202,50 @@ class Node():
             return
         
         elif log_entry.index == self._last_applied_index + 1:
-            # Apply the log entry if it's the next in sequence
+            # Append
             self._log.add_entry(log_entry)
-            self._storage.apply_log_entry(log_entry)
-            self._last_applied_index = log_entry.index
+            
+            # Apply
+            self.apply_log_entry(log_entry)
         else: 
             # Handle out-of-order log entries (not implemented in this simple example)
             raise ValueError(f"Received out-of-order log entry: {log_entry.index}. Expected: {self._last_applied_index + 1}")
 
-    def sync_follower(self, follower_id: str) -> None:
+    def replicate_log_entry(
+        self,
+        follower_id: str,
+        log_entry: LogEntry,
+    ) -> None:
+        """
+        Replicate a single log entry to one follower.
+        """
+        if self._network is None:
+            raise ValueError("Network is not set for the leader node.")
+
+        try:
+            self._network.send(
+                sender_id=self.id,
+                receiver_id=follower_id,
+                log_entry_message=log_entry,
+            )
+        except ConnectionError:
+            # TODO:
+            # - retry
+            # - mark follower unavailable
+            # - backoff
+            pass
+
+    def apply_log_entry(self, log_entry: LogEntry) -> None:
+        """
+        Apply a log entry to the node's storage and update the last applied index.
+
+        Args:
+            log_entry (LogEntry): The log entry to apply.
+        """
+        self._storage.apply_log_entry(log_entry)
+        self._last_applied_index = log_entry.index
+        
+    def replicate_log_entries(self) -> None:
         """
         Replicate log entries to all follower nodes.
 
@@ -202,16 +253,12 @@ class Node():
         each follower node. It ensures that followers stay in sync with the
         leader's state.
         """
-        if self._network is None:
-            raise ValueError("Network is not set for the leader node.")
-        for log_entry in self._log.entries:
-            # Send the log entry to the follower node through the network
-            try:
-                self._network.send(sender_id=self.id, receiver_id=follower_id, log_entry_message=log_entry)
-            except ConnectionError as e:
-                # Handle connection errors (e.g., follower is down) - retry, timeout, follower health checks, etc. 
-                # For simplicity, we just print the error here.
-                pass
+        self._require_leader()
+
+        latest_entry = self._log.entries[-1]
+
+        for follower_id in self._followers:
+            self.replicate_log_entry(follower_id, latest_entry)
 
     def write(self, key: str, value: Any) -> LogEntry:
         """
@@ -221,16 +268,16 @@ class Node():
             key (str): The key to write.
             value (Any): The value to write.
         """
-        if self._role != 'leader':
-            raise ValueError("Only leader nodes can accept write operations.")
-        else: 
-            log_entry = self._log.append(operation='SET', key=key, value=value)
-            self._storage.apply_log_entry(log_entry)
-            self._last_applied_index = log_entry.index  # Update the last applied index
+        self._require_leader()
+        # Append
+        log_entry = self._log.append(operation='SET', key=key, value=value)
 
-            for follower_id in self._followers:
-                self.sync_follower(follower_id)
-            return log_entry  # Return the log entry for testing purposes
+        # Apply
+        self.apply_log_entry(log_entry)
+        
+        # Replicate
+        self.replicate_log_entries()
+        return log_entry  # Return the log entry for testing purposes
 
     def read(self, key: str) -> Any | None:
         """

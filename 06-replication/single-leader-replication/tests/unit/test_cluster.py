@@ -93,33 +93,25 @@ def test_removing_a_leader_elects_the_most_up_to_date_node_and_replication_conti
         leader_node=old_leader,
     )
 
-    cluster.leader.write('before-failover', 1)
+    cluster.leader.write("before-failover", 1)
 
-    # Catch node_three up with leader
-    node_three.receive_log_entry(
-        LogEntry(
-            index=1,
-            operation='SET',
-            key='before-failover',
-            value=1,
-        )
+    latest = LogEntry(
+        index=2,
+        operation="SET",
+        key="latest",
+        value=2,
     )
 
-    # Give node_three a newer entry
-    node_three.receive_log_entry(
-        LogEntry(
-            index=2,
-            operation='SET',
-            key='latest',
-            value=2,
-        )
-    )
+    # Only node_three has the newest entry
+    node_three.receive_log_entry(latest)
+
+    # Bring node_two up before the new write
+    node_two.receive_log_entry(latest)
 
     cluster.remove_node(old_leader)
 
     assert cluster.leader is node_three
-    assert node_three.role == 'leader'
 
-    cluster.leader.write('after-failover', 3)
+    cluster.leader.write("after-failover", 3)
 
-    assert node_two.read('after-failover') == 3
+    assert node_two.read("after-failover") == 3

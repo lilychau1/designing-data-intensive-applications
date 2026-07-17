@@ -47,7 +47,7 @@ def test_send_rejects_an_unregistered_sender() -> None:
     network.register_node(follower)
 
     with pytest.raises(ValueError, match='must be registered'):
-        network.send(leader, follower, LogEntry(index=1, operation='SET', key='a', value=1))
+        network.send(leader.id, follower.id, LogEntry(index=1, operation='SET', key='a', value=1))
 
 
 def test_send_rejects_an_unregistered_receiver() -> None:
@@ -57,7 +57,7 @@ def test_send_rejects_an_unregistered_receiver() -> None:
     network.register_node(leader)
 
     with pytest.raises(ValueError, match='must be registered'):
-        network.send(leader, follower, LogEntry(index=1, operation='SET', key='a', value=1))
+        network.send(leader.id, follower.id, LogEntry(index=1, operation='SET', key='a', value=1))
 
 
 def test_send_rejects_delivery_to_the_same_node() -> None:

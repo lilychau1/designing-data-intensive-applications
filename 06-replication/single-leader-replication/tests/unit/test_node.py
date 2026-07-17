@@ -116,7 +116,7 @@ def test_sync_follower_requires_a_network() -> None:
     leader = make_node('leader-1', role='leader')
 
     with pytest.raises(ValueError, match='Network is not set'):
-        leader.sync_follower(make_node('follower-1'))
+        leader.replicate_log_entry(make_node('follower-1'), LogEntry(index=1, operation='SET', key='colour', value='blue'))
 
 def test_follower_cannot_accept_client_writes() -> None:
     follower = make_node('follower-1')

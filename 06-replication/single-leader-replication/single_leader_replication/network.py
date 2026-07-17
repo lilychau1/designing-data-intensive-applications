@@ -44,6 +44,18 @@ class Network:
             raise ValueError(f"Node with ID {node.id} is already registered.")
         
         self._nodes[node.id] = node
+        
+    def unregister_node(self, node_id: str) -> None:
+        """
+        Unregister a node from the network.
+
+        Args:
+            node_id (str): The ID of the node to unregister.
+        """
+        if node_id not in self._nodes:
+            raise ValueError(f"Node with ID {node_id} is not registered.")
+        
+        del self._nodes[node_id]
 
     def send(self, sender_id: str, receiver_id: str, log_entry_message: LogEntry) -> None:
         """
