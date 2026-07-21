@@ -28,17 +28,14 @@ def make_configs() -> list[Config]:
         Config(
             node_id="node-1",
             address="localhost:5001",
-            peers={},
         ),
         Config(
             node_id="node-2",
             address="localhost:5002",
-            peers={},
         ),
         Config(
             node_id="node-3",
             address="localhost:5003",
-            peers={},
         ),
     ]
 

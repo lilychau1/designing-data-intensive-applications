@@ -10,7 +10,6 @@ def make_config(node_id: str) -> Config:
     return Config(
         node_id=node_id,
         address=f"localhost:{node_id}",
-        peers={},
     )
 
 
