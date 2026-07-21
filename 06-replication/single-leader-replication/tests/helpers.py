@@ -1,19 +1,21 @@
-# tests/conftest.py
+"""
+helper.py
 
+Helper functions for tests.
+"""
 from single_leader_replication.config import Config
-from single_leader_replication.node import Node
+
 
 def make_config(node_id: str) -> Config:
     return Config(
         node_id=node_id,
         address=f"localhost:{node_id}",
-        peers={}
     )
 
 
-def make_node(node_id: str, role: str = "follower", network=None) -> Node:
-    return Node(
-        config=make_config(node_id),
-        role=role, 
-        network=network
-    )
+def make_configs() -> list[Config]:
+    return [
+        make_config("node-1"),
+        make_config("node-2"),
+        make_config("node-3"),
+    ]
