@@ -35,7 +35,6 @@ class Node():
         self,
         config: Config, 
         role: str = 'follower', 
-        network: Network | None = None
     ) -> None:
         """
         Initialize a new database node.
@@ -52,9 +51,6 @@ class Node():
         # Node identification and role
         self._config = config
         self._role = role  # Role of the node: 'leader' or 'follower'
-
-        # Network for sending messages between nodes
-        self._network = network
 
     @property
     def id(self) -> str:
@@ -106,6 +102,16 @@ class Node():
         """
         return self._config.peers
     
+    @property
+    def followers(self) -> list[str]:
+        """
+        Get the list of follower node IDs.
+
+        Returns:
+            list[str]: The list of follower node IDs.
+        """
+        return self._followers.copy()
+    
     def set_role(self, role: str) -> None:
         """
         Set the role of the node.
@@ -156,25 +162,6 @@ class Node():
         Clear the list of followers for the node.
         """
         self._followers.clear()
-        
-    def set_network(self, network: Network) -> None:
-        """
-        Set the network for the node.
-
-        Args:
-            network (Network): The network to set.
-        """
-        self._network = network
-        
-    @property
-    def network(self) -> Network | None:
-        """
-        Get the network for the node.
-
-        Returns:
-            Network | None: The network for the node, or None if not set.
-        """
-        return self._network
     
     def promote_to_leader(self) -> None:
         """
@@ -211,30 +198,6 @@ class Node():
             # Handle out-of-order log entries (not implemented in this simple example)
             raise ValueError(f"Received out-of-order log entry: {log_entry.index}. Expected: {self._last_applied_index + 1}")
 
-    def replicate_log_entry(
-        self,
-        follower_id: str,
-        log_entry: LogEntry,
-    ) -> None:
-        """
-        Replicate a single log entry to one follower.
-        """
-        if self._network is None:
-            raise ValueError("Network is not set for the leader node.")
-
-        try:
-            self._network.send(
-                sender_id=self.id,
-                receiver_id=follower_id,
-                log_entry_message=log_entry,
-            )
-        except ConnectionError:
-            # TODO:
-            # - retry
-            # - mark follower unavailable
-            # - backoff
-            pass
-
     def apply_log_entry(self, log_entry: LogEntry) -> None:
         """
         Apply a log entry to the node's storage and update the last applied index.
@@ -244,21 +207,6 @@ class Node():
         """
         self._storage.apply_log_entry(log_entry)
         self._last_applied_index = log_entry.index
-        
-    def replicate_log_entries(self) -> None:
-        """
-        Replicate log entries to all follower nodes.
-
-        This method sends all log entries that have not yet been applied to
-        each follower node. It ensures that followers stay in sync with the
-        leader's state.
-        """
-        self._require_leader()
-
-        latest_entry = self._log.entries[-1]
-
-        for follower_id in self._followers:
-            self.replicate_log_entry(follower_id, latest_entry)
 
     def write(self, key: str, value: Any) -> LogEntry:
         """
@@ -274,9 +222,7 @@ class Node():
 
         # Apply
         self.apply_log_entry(log_entry)
-        
-        # Replicate
-        self.replicate_log_entries()
+    
         return log_entry  # Return the log entry for testing purposes
 
     def read(self, key: str) -> Any | None:
