@@ -81,7 +81,7 @@ class Cluster:
             
             self._node_history[node_id] = NodeInfo(
                 node_id=node_id,
-                role=NodeRole.FOLLOWER,
+                role=NodeRole.FOLLOWER if node_id != self._leader_id else NodeRole.LEADER,
                 status=NodeStatus.STOPPED,
                 last_applied_index=0,
             )
@@ -186,11 +186,11 @@ class Cluster:
         # Mark it as removed.
         self._node_history[node_id] = NodeInfo(
             node_id=node_id,
-            role=final_state.role,
+            role=NodeRole.FOLLOWER,
             status=NodeStatus.REMOVED,
             last_applied_index=final_state.last_applied_index,
         )
-
+        
         # Stop process.
         self._routes[node_id].put(None)
         self._processes[node_id].join()
@@ -210,6 +210,65 @@ class Cluster:
                 self.elect_new_leader()
         else:
             self.configure_followers()
+    
+    def restart_node(self, node_id: str) -> None:
+        """
+        Restart a previously removed node and add it back to the active cluster.
+
+        The node is recreated as a follower and then added back to the
+        current leader's follower configuration.
+        """
+
+        if node_id not in self._all_node_ids:
+            raise ValueError(f"Unknown node: {node_id}")
+
+        if node_id in self._active_node_ids:
+            raise ValueError(f"Node {node_id} is already active")
+
+        config = self._node_configs[node_id]
+
+        # Create a new inbox for the restarted node.
+        inbox = self._manager.Queue()
+
+        # Create a new NodeProcess.
+        worker = NodeProcess(
+            config=config,
+            inbox=inbox,
+            outgoing=self._outgoing,
+            client_responses=self._client_responses,
+            state_responses=self._state_responses,
+        )
+
+        # Create a new OS process.
+        process = Process(target=worker.run)
+
+        # Restore runtime bookkeeping.
+        self._routes[node_id] = inbox
+        self._workers[node_id] = worker
+        self._processes[node_id] = process
+
+        # Mark node as active again.
+        self._active_node_ids.append(node_id)
+
+        # Start the process.
+        process.start()
+
+        # Reset the node's role to follower.
+        self._routes[node_id].put(
+            DemoteToFollowerMessage()
+        )
+
+        # Remove REMOVED status from history.
+        previous_state = self._node_history[node_id]
+
+        self._node_history[node_id] = NodeInfo(
+            node_id=node_id,
+            role=NodeRole.FOLLOWER,
+            status=NodeStatus.RUNNING,
+            last_applied_index=previous_state.last_applied_index,
+        )
+        # Reconfigure the leader's followers.
+        self.configure_followers()
             
     def get_node_states(self) -> dict[str, NodeInfo]:
         """
@@ -350,29 +409,45 @@ class Cluster:
     
     def elect_new_leader(self) -> None:
         """
-        Elect a new leader for the cluster based on the state of the live node processes.
+        Elect a new leader from the currently active nodes.
         """
-        
-        if not self._active_node_ids:
-            raise RuntimeError("No active nodes available to elect a leader.")
 
+        if not self._active_node_ids:
+            raise RuntimeError("No active nodes available.")
+
+        # Find the best active node.
         new_leader_id = self.choose_best_node()
 
-        # Demote old leader
-        if self._leader_id is not None:
+        # Demote the previous leader if there is one
+        # and it is still active.
+        if (
+            self._leader_id is not None
+            and self._leader_id in self._active_node_ids
+            and self._leader_id != new_leader_id
+        ):
             self._routes[self._leader_id].put(
                 DemoteToFollowerMessage()
             )
 
-        # Update cluster's view of leader
+        # Update cluster's leader reference.
         self._leader_id = new_leader_id
 
-        # Promote new leader
+        # Promote new leader.
         self._routes[new_leader_id].put(
             PromoteToLeaderMessage()
         )
 
-        # Configure followers for the new leader
+        # Update the historical state immediately.
+        previous_state = self._node_history[new_leader_id]
+
+        self._node_history[new_leader_id] = NodeInfo(
+            node_id=new_leader_id,
+            role=NodeRole.LEADER,
+            status=NodeStatus.RUNNING,
+            last_applied_index=previous_state.last_applied_index,
+        )
+
+        # Configure the new leader with active followers.
         self.configure_followers()
         
     def write(self, key: str, value: any) -> None:

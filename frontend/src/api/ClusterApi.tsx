@@ -1,7 +1,4 @@
-import type {
-  NodeInfo,
-  NodeStatusResponse,
-} from "../types/cluster";
+import type { NodeInfo, NodeStatusResponse } from "../types/cluster";
 
 const API_BASE_URL = "http://localhost:8000";
 
@@ -55,6 +52,23 @@ export async function removeNode(
 
   if (!response.ok) {
     throw new Error(`Failed to remove node ${nodeId}`);
+  }
+
+  return response.json();
+}
+
+export async function restartNode(
+  nodeId: string
+): Promise<NodeStatusResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/cluster/nodes/${nodeId}/restart`,
+    {
+      method: "POST",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to restart node ${nodeId}`);
   }
 
   return response.json();

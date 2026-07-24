@@ -243,3 +243,25 @@ def get_node_state(node_id: str) -> NodeInfo:
         status=state.status,
         last_applied_index=state.last_applied_index
     )
+    
+@app.post(
+    '/cluster/nodes/{node_id}/restart',
+    response_model=NodeStatusResponse,
+)
+def restart_node_in_cluster(node_id: str) -> NodeStatusResponse:
+    """
+    Restart a previously removed node.
+    """
+
+    try:
+        cluster.restart_node(node_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return NodeStatusResponse(
+        leader_id=cluster.leader_id,
+        nodes=list(cluster.get_node_states().values()),
+    )

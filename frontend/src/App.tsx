@@ -1,100 +1,113 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import ClusterView from "./components/ClusterView";
+import EventTimeline from "./components/EventTimeline";
 
 import {
   getClusterStatus,
   removeNode,
+  restartNode,
 } from "./api/clusterApi";
 
-import type {
-  NodeInfo,
-} from "./types/cluster";
+import type { NodeInfo } from "./types/cluster";
 
-import type {
-  ClusterEvent,
-} from "./types/events";
-
-import { ClusterView } from "./components/ClusterView";
-import { ClusterControls } from "./components/ClusterControls";
-import { EventTimeline } from "./components/EventTimeline";
-
-export default function App() {
+function App() {
   const [leaderId, setLeaderId] = useState<string | null>(null);
-
   const [nodes, setNodes] = useState<NodeInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [events, setEvents] = useState<ClusterEvent[]>([]);
+  const refreshCluster = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-  async function refreshCluster() {
-    const status = await getClusterStatus();
+    try {
+      const clusterStatus = await getClusterStatus();
 
-    setLeaderId(status.leader_id);
-    setNodes(status.nodes);
-  }
+      setLeaderId(clusterStatus.leader_id);
+      setNodes(clusterStatus.nodes);
+    } catch (error) {
+      console.error("Failed to refresh cluster:", error);
 
-  async function handleRemoveNode(nodeId: string) {
-    const previousLeader = leaderId;
-
-    const status = await removeNode(nodeId);
-
-    setLeaderId(status.leader_id);
-    setNodes(status.nodes);
-
-    const newEvent: ClusterEvent = {
-      id: crypto.randomUUID(),
-      type: "node_removed",
-      message: `${nodeId} was removed from the cluster`,
-      timestamp: new Date().toISOString(),
-    };
-
-    setEvents((currentEvents) => [
-      newEvent,
-      ...currentEvents,
-    ]);
-
-    if (
-      previousLeader !== status.leader_id
-    ) {
-      const leaderEvent: ClusterEvent = {
-        id: crypto.randomUUID(),
-        type: "leader_changed",
-        message: `Leader changed from ${
-          previousLeader ?? "none"
-        } to ${
-          status.leader_id ?? "none"
-        }`,
-        timestamp: new Date().toISOString(),
-      };
-
-      setEvents((currentEvents) => [
-        leaderEvent,
-        ...currentEvents,
-      ]);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh cluster"
+      );
+    } finally {
+      setLoading(false);
     }
-  }
+  }, []);
+
+  const handleRemoveNode = async (nodeId: string) => {
+    setError(null);
+
+    try {
+      const clusterStatus = await removeNode(nodeId);
+
+      setLeaderId(clusterStatus.leader_id);
+      setNodes(clusterStatus.nodes);
+    } catch (error) {
+      console.error(`Failed to remove node ${nodeId}:`, error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : `Failed to remove node ${nodeId}`
+      );
+    }
+  };
+
+  const handleRestartNode = async (nodeId: string) => {
+    setError(null);
+
+    try {
+      const clusterStatus = await restartNode(nodeId);
+
+      setLeaderId(clusterStatus.leader_id);
+      setNodes(clusterStatus.nodes);
+    } catch (error) {
+      console.error(`Failed to restart node ${nodeId}:`, error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : `Failed to restart node ${nodeId}`
+      );
+    }
+  };
 
   useEffect(() => {
     refreshCluster();
-  }, []);
+  }, [refreshCluster]);
 
   return (
     <main>
-      <h1>
-        Single-Leader Replication Cluster
-      </h1>
+      <h1>Single-Leader Replication Cluster</h1>
 
-      <ClusterControls
-        onRefresh={refreshCluster}
-      />
+      <button
+        onClick={refreshCluster}
+        disabled={loading}
+      >
+        {loading ? "Refreshing..." : "Refresh cluster"}
+      </button>
+
+      {error && (
+        <p role="alert">
+          Error: {error}
+        </p>
+      )}
 
       <ClusterView
         leaderId={leaderId}
         nodes={nodes}
         onRemoveNode={handleRemoveNode}
+        onRestartNode={handleRestartNode}
       />
 
-      <EventTimeline
-        events={events}
-      />
+      <EventTimeline />
     </main>
   );
 }
+
+export default App;
