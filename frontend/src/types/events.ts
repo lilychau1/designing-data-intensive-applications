@@ -1,11 +1,12 @@
-export type ClusterEventType =
+export type EventType =
   | "node_removed"
-  | "leader_changed"
-  | "cluster_updated";
+  | "node_restarted"
+  | "leader_elected";
 
 export interface ClusterEvent {
   id: string;
-  type: ClusterEventType;
+  type: EventType;
+  nodeId: string;
   message: string;
   timestamp: string;
 }

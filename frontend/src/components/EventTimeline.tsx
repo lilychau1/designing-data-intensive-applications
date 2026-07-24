@@ -1,9 +1,11 @@
+import type { ClusterEvent } from "../types/events";
+
 interface EventTimelineProps {
-  events?: string[];
+  events: ClusterEvent[];
 }
 
 export default function EventTimeline({
-  events = [],
+  events,
 }: EventTimelineProps) {
   return (
     <section>
@@ -12,13 +14,25 @@ export default function EventTimeline({
       {events.length === 0 ? (
         <p>No events yet.</p>
       ) : (
-        <ul>
-          {events.map((event, index) => (
-            <li key={index}>
-              {event}
-            </li>
+        <div>
+          {events.map((event) => (
+            <div key={event.id}>
+              <strong>
+                {event.type}
+              </strong>
+
+              <p>
+                {event.message}
+              </p>
+
+              <small>
+                {new Date(
+                  event.timestamp
+                ).toLocaleTimeString()}
+              </small>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import type { ClusterEvent } from "./types/events";
 import ClusterView from "./components/ClusterView";
 import EventTimeline from "./components/EventTimeline";
 
@@ -16,7 +17,8 @@ function App() {
   const [nodes, setNodes] = useState<NodeInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [events, setEvents] = useState<ClusterEvent[]>([]);  
+  
   const refreshCluster = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -39,43 +41,57 @@ function App() {
     }
   }, []);
 
-  const handleRemoveNode = async (nodeId: string) => {
-    setError(null);
-
+  const handleRemoveNode = async function handleRemoveNode(nodeId: string) {
     try {
-      const clusterStatus = await removeNode(nodeId);
+      await removeNode(nodeId);
 
-      setLeaderId(clusterStatus.leader_id);
-      setNodes(clusterStatus.nodes);
+      const event: ClusterEvent = {
+        id: crypto.randomUUID(),
+        type: "node_removed",
+        nodeId,
+        message: `Node ${nodeId} was removed from the cluster.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      setEvents((previousEvents) => [
+        ...previousEvents,
+        event,
+      ]);
+
+      await refreshCluster();
     } catch (error) {
-      console.error(`Failed to remove node ${nodeId}:`, error);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : `Failed to remove node ${nodeId}`
+      console.error(
+        `Failed to remove node ${nodeId}:`,
+        error
       );
     }
-  };
+  }
 
-  const handleRestartNode = async (nodeId: string) => {
-    setError(null);
-
+  const handleRestartNode = async function handleRestartNode(nodeId: string) {
     try {
-      const clusterStatus = await restartNode(nodeId);
+      await restartNode(nodeId);
 
-      setLeaderId(clusterStatus.leader_id);
-      setNodes(clusterStatus.nodes);
+      const event: ClusterEvent = {
+        id: crypto.randomUUID(),
+        type: "node_restarted",
+        nodeId,
+        message: `Node ${nodeId} was restarted and added back to the cluster.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      setEvents((previousEvents) => [
+        ...previousEvents,
+        event,
+      ]);
+
+      await refreshCluster();
     } catch (error) {
-      console.error(`Failed to restart node ${nodeId}:`, error);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : `Failed to restart node ${nodeId}`
+      console.error(
+        `Failed to restart node ${nodeId}:`,
+        error
       );
     }
-  };
+  }
 
   useEffect(() => {
     refreshCluster();
@@ -105,7 +121,7 @@ function App() {
         onRestartNode={handleRestartNode}
       />
 
-      <EventTimeline />
+      <EventTimeline events={events} />
     </main>
   );
 }

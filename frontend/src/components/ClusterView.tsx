@@ -1,16 +1,16 @@
-import type { NodeInfo } from "../types/cluster";
 import NodeCard from "./NodeCard";
+import type { NodeInfo } from "../types/cluster";
 
 interface ClusterViewProps {
-  leaderId: string | null;
   nodes: NodeInfo[];
+  leaderId: string | null;
   onRemoveNode: (nodeId: string) => void;
   onRestartNode: (nodeId: string) => void;
 }
 
 export default function ClusterView({
-  leaderId,
   nodes,
+  leaderId,
   onRemoveNode,
   onRestartNode,
 }: ClusterViewProps) {
@@ -22,12 +22,19 @@ export default function ClusterView({
         Leader: {leaderId ?? "No leader"}
       </p>
 
-      <div className="node-list">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "20px",
+        }}
+      >
         {nodes.map((node) => (
           <NodeCard
             key={node.node_id}
             node={node}
-            isLeader={node.node_id === leaderId}
+            leaderId={leaderId}
             onRemove={onRemoveNode}
             onRestart={onRestartNode}
           />
