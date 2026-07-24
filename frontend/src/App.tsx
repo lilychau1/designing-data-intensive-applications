@@ -8,7 +8,7 @@ import {
   getClusterStatus,
   removeNode,
   restartNode,
-} from "./api/clusterApi";
+} from "./api/ClusterApi";
 
 import type { NodeInfo } from "./types/cluster";
 
