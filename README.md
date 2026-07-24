@@ -17,6 +17,8 @@ concrete, not to provide production-ready infrastructure.
 
 The current project models a small distributed in-memory key-value database
 using a single-leader replication architecture.
+<img width="1133" height="843" alt="image" src="https://github.com/user-attachments/assets/27701525-49c1-4e88-91e5-86de33f9bcb3" />
+
 
 The system consists of:
 
