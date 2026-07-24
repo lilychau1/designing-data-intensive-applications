@@ -9,6 +9,7 @@ multiple nodes, including leader election and log replication.
 from multiprocessing import Queue, Process, Manager
 import uuid
 from typing import Any
+import queue
 
 from single_leader_replication.config import Config
 from single_leader_replication.node_process import NodeProcess
@@ -23,6 +24,7 @@ from single_leader_replication.messages import (
     ReadResponseMessage,
     PromoteToLeaderMessage,
 )
+from single_leader_replication.models import NodeInfo, NodeStatus, NodeRole
 
 class Cluster:
     def __init__(self, node_configs: list[Config], leader_node_id: str | None = None) -> None:
@@ -35,8 +37,10 @@ class Cluster:
         self._workers: dict[str, NodeProcess] = {}
         self._processes: dict[str, Process] = {}
         self._node_configs: dict[str, Config] = {config.node_id: config for config in node_configs}
-        self._node_ids: list[str] = list(self._node_configs.keys())
-
+        self._all_node_ids: list[str] = list(self._node_configs.keys())
+        self._active_node_ids: list[str] = list(self._node_configs.keys())
+        self._node_history: dict[str, NodeInfo] = {}
+        
         self._leader_id: str | None = leader_node_id
 
         # Create shared network
@@ -74,6 +78,13 @@ class Cluster:
             self._processes[node_id] = process
             
             self._routes[node_id] = inbox
+            
+            self._node_history[node_id] = NodeInfo(
+                node_id=node_id,
+                role=NodeRole.FOLLOWER,
+                status=NodeStatus.STOPPED,
+                last_applied_index=0,
+            )
 
     def configure_followers(self) -> None:
         """
@@ -85,7 +96,7 @@ class Cluster:
         if self._leader_id is None:
             return
 
-        follower_ids = [node_id for node_id in self._node_ids if node_id != self._leader_id]
+        follower_ids = [node_id for node_id in self._active_node_ids if node_id != self._leader_id]
         self._routes[self._leader_id].put(
             ConfigureFollowersMessage(
                 leader_id=self._leader_id,
@@ -95,8 +106,12 @@ class Cluster:
 
     @property
     def node_ids(self) -> list[str]:
-        return self._node_ids
+        return self._all_node_ids
     
+    @property
+    def active_node_ids(self) -> list[str]:
+        return self._active_node_ids
+
     @property
     def processes(self) -> dict[str, NodeProcess]:
         return self._workers
@@ -153,66 +168,161 @@ class Cluster:
             
     def remove_node(self, node_id: str) -> None:
         """
-        Remove a node from the cluster.
-
-        Args:
-            node (Node): The node to remove.
+        Remove a node from the active cluster while retaining its
+        historical state for observability.
         """
-        if node_id not in self._node_ids:
+
+        if node_id not in self._all_node_ids:
+            return
+
+        if node_id not in self._active_node_ids:
             return
 
         was_leader = node_id == self._leader_id
 
-        # Stop process
+        # Get final state before removing the node.
+        final_state = self.get_node_state(node_id)
+
+        # Mark it as removed.
+        self._node_history[node_id] = NodeInfo(
+            node_id=node_id,
+            role=final_state.role,
+            status=NodeStatus.REMOVED,
+            last_applied_index=final_state.last_applied_index,
+        )
+
+        # Stop process.
         self._routes[node_id].put(None)
         self._processes[node_id].join()
-        
-        # Remove bookkeeping references
-        self._node_ids.remove(node_id)
+
+        # Remove from active cluster.
+        self._active_node_ids.remove(node_id)
+
+        # Remove active runtime resources.
         del self._routes[node_id]
         del self._workers[node_id]
         del self._processes[node_id]
-        del self._node_configs[node_id]
 
         if was_leader:
             self._leader_id = None
-            self.elect_new_leader()
+
+            if self._active_node_ids:
+                self.elect_new_leader()
         else:
             self.configure_followers()
-    
-    def get_node_states(self) -> dict[str, GetNodeStateResponseMessage]:
+            
+    def get_node_states(self) -> dict[str, NodeInfo]:
         """
-        Get the state of all nodes in the cluster.
+        Return the latest known state of every node, including removed nodes.
 
-        Args:
-            node_id (str): The ID of the node to retrieve the state for.
+        This method does not query node processes. It returns the cluster's
+        latest known snapshot.
+        """
+        return dict(self._node_history)
+    
+    def get_active_node_states(self) -> dict[str, NodeInfo]:
+        """
+        Query all active nodes for their current state.
 
         Returns:
-            dict: A dictionary mapping node IDs to their state information, including role and last applied index.
+            A dictionary mapping active node IDs to their latest state.
         """
+
         request_id = str(uuid.uuid4())
 
-        states: dict[str, GetNodeStateResponseMessage] = {}
+        states: dict[str, NodeInfo] = {}
 
-        for node_id in self._node_ids:
-            # Send a request to each node to get its state
+        active_node_ids = list(self._active_node_ids)
+
+        for node_id in active_node_ids:
             self._routes[node_id].put(
                 GetNodeStateRequestMessage(
                     request_id=request_id,
                 )
             )
 
-        # Wait for responses from all nodes
-        while len(states) < len(self._node_ids):
-            response: GetNodeStateResponseMessage = self._state_responses.get()
+        while len(states) < len(active_node_ids):
+            try:
+                response: GetNodeStateResponseMessage = (
+                    self._state_responses.get(timeout=5)
+                )
+            except queue.Empty:
+                raise RuntimeError(
+                    "Timed out waiting for node state responses. "
+                    f"Received {len(states)} of {len(active_node_ids)} responses."
+                )
 
             if response.request_id != request_id:
                 continue
-            
-            states[response.node_id] = response
-        
+
+            process = self._processes[response.node_id]
+
+            state = NodeInfo(
+                node_id=response.node_id,
+                role=response.role,
+                status=(
+                    NodeStatus.RUNNING
+                    if process.is_alive()
+                    else NodeStatus.STOPPED
+                ),
+                last_applied_index=response.last_applied_index,
+            )
+
+            states[response.node_id] = state
+
+            # Update latest known state.
+            self._node_history[response.node_id] = state
+
         return states
-                
+
+
+    def get_node_state(self, node_id: str) -> NodeInfo:
+        """
+        Get the current state of a node.
+
+        Active nodes are queried directly.
+        Removed nodes return their last known state.
+        """
+
+        if node_id not in self._all_node_ids:
+            raise ValueError(f"Unknown node: {node_id}")
+
+        if node_id not in self._active_node_ids:
+            return self._node_history[node_id]
+
+        request_id = str(uuid.uuid4())
+
+        self._routes[node_id].put(
+            GetNodeStateRequestMessage(
+                request_id=request_id,
+            )
+        )
+
+        while True:
+            response: GetNodeStateResponseMessage = (
+                self._state_responses.get()
+            )
+
+            if response.request_id != request_id:
+                continue
+
+            process = self._processes[response.node_id]
+
+            state = NodeInfo(
+                node_id=response.node_id,
+                role=response.role,
+                status=(
+                    NodeStatus.RUNNING
+                    if process.is_alive()
+                    else NodeStatus.STOPPED
+                ),
+                last_applied_index=response.last_applied_index,
+            )
+
+            self._node_history[node_id] = state
+
+            return state
+
     def choose_best_node(self) -> str:
         """
         Choose the best node to become the new leader.
@@ -220,16 +330,21 @@ class Cluster:
         Returns:
             str: The chosen node ID to become the new leader.
         """
-        if not self._node_ids:
-            raise RuntimeError('No nodes available to choose from.')
+        if not self._active_node_ids:
+            raise RuntimeError('No active nodes available to choose from.')
 
-        states = self.get_node_states()
+        states = self.get_active_node_states()
         
+        running_states = [
+            state for state in states.values()
+            if state.status == NodeStatus.RUNNING
+        ]
+
         return max(
-            states.values(),
+            running_states,
             key=lambda state: (
-                state.last_applied_index,
-                state.node_id,
+            state.last_applied_index,
+            state.node_id,
             ),
         ).node_id
     
@@ -238,8 +353,8 @@ class Cluster:
         Elect a new leader for the cluster based on the state of the live node processes.
         """
         
-        if not self._node_ids:
-            raise RuntimeError("No nodes available to elect a leader.")
+        if not self._active_node_ids:
+            raise RuntimeError("No active nodes available to elect a leader.")
 
         new_leader_id = self.choose_best_node()
 
@@ -299,7 +414,7 @@ class Cluster:
         This method is primarily useful for testing and diagnostics.
         """
         while True:
-            states = self.get_node_states()
+            states = self.get_active_node_states()
             
             if all(
                 state.last_applied_index >= expected_index
@@ -314,8 +429,11 @@ class Cluster:
         This is primarily useful for testing and diagnostics.
         """
 
-        if node_id not in self._node_ids:
+        if node_id not in self._all_node_ids:
             raise ValueError(f"Unknown node: {node_id}")
+        
+        if node_id not in self._active_node_ids:
+            raise ValueError(f"Node {node_id} is not active.")
 
         request_id = str(uuid.uuid4())
 
