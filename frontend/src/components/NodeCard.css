@@ -1,0 +1,115 @@
+.node-card {
+  border: 2px solid white;
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  background: transparent;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.node-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Leader node */
+.node-card.leader {
+  background-color: white;
+  color: black;
+}
+
+/* Header */
+.node-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.node-card-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+/* Leader badge */
+.node-card-leader-badge {
+  background-color: black;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+/* Node information */
+.node-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.node-card-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.node-card-label {
+  font-weight: bold;
+}
+
+/* Buttons */
+.node-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.node-card button {
+  border: 1px solid white;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.node-card button:hover:not(:disabled) {
+  background-color: white;
+  color: black;
+}
+
+/* Leader buttons */
+.node-card.leader button {
+  border-color: black;
+}
+
+.node-card.leader button:hover:not(:disabled) {
+  background-color: black;
+  color: white;
+}
+
+/* Disabled buttons */
+.node-card button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Removed node */
+.node-card.removed {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.node-card.removed .node-card-title {
+  text-decoration: line-through;
+}

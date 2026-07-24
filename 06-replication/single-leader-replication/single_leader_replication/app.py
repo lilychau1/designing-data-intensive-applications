@@ -14,8 +14,14 @@ object instead of directly interacting with Storage.
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
-from single_leader_replication.models import SetRequest, ValueResponse
+from single_leader_replication.models import (
+    SetRequest, 
+    ValueResponse, 
+    NodeStatusResponse, 
+    NodeInfo,
+)
 from single_leader_replication.cluster import Cluster
 from single_leader_replication.config import Config
 
@@ -43,14 +49,20 @@ async def lifespan(app: FastAPI):
     cluster.stop()
 
 app = FastAPI(lifespan=lifespan)
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"^http://localhost:\d+$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---------------------------------------------------------------------------
 # Leader API
 # ---------------------------------------------------------------------------
 
 @app.post(
-    "/set",
+    '/set',
     response_model=ValueResponse,
 )
 def set_value(request: SetRequest) -> ValueResponse:
@@ -63,7 +75,7 @@ def set_value(request: SetRequest) -> ValueResponse:
     if leader_id is None:
         raise HTTPException(
             status_code=503,
-            detail="No leader available",
+            detail='No leader available',
         )
 
     cluster.write(
@@ -79,7 +91,7 @@ def set_value(request: SetRequest) -> ValueResponse:
 
 
 @app.get(
-    "/get/{key}",
+    '/get/{key}',
     response_model=ValueResponse,
 )
 def get_value(key: str) -> ValueResponse:
@@ -92,7 +104,7 @@ def get_value(key: str) -> ValueResponse:
     if leader_id is None:
         raise HTTPException(
             status_code=503,
-            detail="No leader available",
+            detail='No leader available',
         )
 
     value = cluster.read(key)
@@ -109,7 +121,7 @@ def get_value(key: str) -> ValueResponse:
 # ---------------------------------------------------------------------------
 
 @app.get(
-    "/nodes/{node_id}/get/{key}",
+    '/nodes/{node_id}/get/{key}',
     response_model=ValueResponse,
 )
 def get_value_from_node(
@@ -138,4 +150,118 @@ def get_value_from_node(
         node_id=node_id,
         key=key,
         value=value,
+    )
+    
+@app.get('/cluster/node-statuses', response_model=NodeStatusResponse)
+def get_cluster_status() -> NodeStatusResponse:
+    """
+    Get the status of the cluster.
+    """
+    states = cluster.get_node_states()
+    
+    nodes = [
+        NodeInfo(
+            node_id=node_id,
+            role=state.role,
+            status=state.status,
+            last_applied_index=state.last_applied_index
+        )
+        for node_id, state in states.items()
+    ]
+
+    return NodeStatusResponse(
+        leader_id=cluster.leader_id,
+        nodes=nodes,
+    )
+
+@app.get('/cluster/active-node-statuses', response_model=NodeStatusResponse)
+def get_active_nodes_states() -> NodeStatusResponse:
+    """
+    Get the status of all active nodes in the cluster.
+    """
+    states = cluster.get_active_node_states()
+
+    nodes = [
+        NodeInfo(
+            node_id=node_id,
+            role=state.role,
+            status=state.status,
+            last_applied_index=state.last_applied_index
+        )
+        for node_id, state in states.items()
+    ]
+
+    return NodeStatusResponse(
+        leader_id=cluster.leader_id,
+        nodes=nodes,
+    )
+
+@app.post('/cluster/write', response_model=ValueResponse)
+def write_to_cluster(request: SetRequest) -> ValueResponse:
+    """
+    Write a key-value pair to the cluster.
+    """
+    cluster.write(
+        request.key,
+        request.value,
+    )
+
+    return ValueResponse(
+        node_id=cluster.leader_id,
+        key=request.key,
+        value=request.value,
+    )
+
+@app.post('/cluster/nodes/{node_id}/remove', response_model=NodeStatusResponse)
+def remove_node_from_cluster(node_id: str) -> NodeStatusResponse:
+    """
+    Remove a node from the cluster.
+    """
+    cluster.remove_node(node_id)
+
+    return NodeStatusResponse(
+        leader_id=cluster.leader_id,
+        nodes=list(cluster.get_node_states().values()),
+    )
+    
+@app.get('/cluster/nodes/{node_id}', response_model=NodeInfo)
+def get_node_state(node_id: str) -> NodeInfo:
+    """
+    Get information about a specific node in the cluster.
+    """
+    state = cluster.get_node_state(node_id)
+
+    if state is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Node {node_id} not found in the cluster',
+        )
+
+    return NodeInfo(
+        node_id=node_id,
+        role=state.role,
+        status=state.status,
+        last_applied_index=state.last_applied_index
+    )
+    
+@app.post(
+    '/cluster/nodes/{node_id}/restart',
+    response_model=NodeStatusResponse,
+)
+def restart_node_in_cluster(node_id: str) -> NodeStatusResponse:
+    """
+    Restart a previously removed node.
+    """
+
+    try:
+        cluster.restart_node(node_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return NodeStatusResponse(
+        leader_id=cluster.leader_id,
+        nodes=list(cluster.get_node_states().values()),
     )
