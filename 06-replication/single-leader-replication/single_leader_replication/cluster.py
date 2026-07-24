@@ -215,8 +215,10 @@ class Cluster:
         """
         Restart a previously removed node and add it back to the active cluster.
 
-        The node is recreated as a follower and then added back to the
-        current leader's follower configuration.
+        If there is currently no live leader, the restarted node becomes
+        the new leader.
+
+        If a live leader already exists, the restarted node becomes a follower.
         """
 
         if node_id not in self._all_node_ids:
@@ -227,10 +229,16 @@ class Cluster:
 
         config = self._node_configs[node_id]
 
-        # Create a new inbox for the restarted node.
+        # ---------------------------------------------------------
+        # Create a new inbox
+        # ---------------------------------------------------------
+
         inbox = self._manager.Queue()
 
-        # Create a new NodeProcess.
+        # ---------------------------------------------------------
+        # Create a new NodeProcess
+        # ---------------------------------------------------------
+
         worker = NodeProcess(
             config=config,
             inbox=inbox,
@@ -239,35 +247,94 @@ class Cluster:
             state_responses=self._state_responses,
         )
 
-        # Create a new OS process.
+        # ---------------------------------------------------------
+        # Create a new OS process
+        # ---------------------------------------------------------
+
         process = Process(target=worker.run)
 
-        # Restore runtime bookkeeping.
+        # ---------------------------------------------------------
+        # Restore runtime bookkeeping
+        # ---------------------------------------------------------
+
         self._routes[node_id] = inbox
         self._workers[node_id] = worker
         self._processes[node_id] = process
 
-        # Mark node as active again.
+        # Add node back to active cluster
         self._active_node_ids.append(node_id)
 
-        # Start the process.
+        # ---------------------------------------------------------
+        # Start the process
+        # ---------------------------------------------------------
+
         process.start()
 
-        # Reset the node's role to follower.
-        self._routes[node_id].put(
-            DemoteToFollowerMessage()
-        )
+        # ---------------------------------------------------------
+        # Determine whether there is a LIVE leader
+        # ---------------------------------------------------------
 
-        # Remove REMOVED status from history.
+        live_leader_id = None
+
+        if self._leader_id is not None:
+            leader_process = self._processes.get(self._leader_id)
+
+            if (
+                leader_process is not None
+                and leader_process.is_alive()
+            ):
+                live_leader_id = self._leader_id
+
+        # ---------------------------------------------------------
+        # Case 1: No live leader exists
+        # ---------------------------------------------------------
+
+        if live_leader_id is None:
+
+            # Clear any stale leader reference
+            self._leader_id = None
+
+            # The restarted node becomes the new leader
+            self._leader_id = node_id
+
+            self._routes[node_id].put(
+                PromoteToLeaderMessage()
+            )
+
+        # ---------------------------------------------------------
+        # Case 2: A live leader already exists
+        # ---------------------------------------------------------
+
+        else:
+
+            # The restarted node becomes a follower
+            self._routes[node_id].put(
+                DemoteToFollowerMessage()
+            )
+
+        # ---------------------------------------------------------
+        # Update node history
+        # ---------------------------------------------------------
+
         previous_state = self._node_history[node_id]
+
+        new_role = (
+            NodeRole.LEADER
+            if self._leader_id == node_id
+            else NodeRole.FOLLOWER
+        )
 
         self._node_history[node_id] = NodeInfo(
             node_id=node_id,
-            role=NodeRole.FOLLOWER,
+            role=new_role,
             status=NodeStatus.RUNNING,
             last_applied_index=previous_state.last_applied_index,
         )
-        # Reconfigure the leader's followers.
+
+        # ---------------------------------------------------------
+        # Configure followers
+        # ---------------------------------------------------------
+
         self.configure_followers()
             
     def get_node_states(self) -> dict[str, NodeInfo]:
