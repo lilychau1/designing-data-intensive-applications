@@ -35,6 +35,8 @@ The project demonstrates:
 
 The implementation is intentionally simplified to make the core concepts of replication, process isolation, message passing, and failover easier to understand and experiment with.
 
+For the full architecture, implementation details, API documentation, tests, and limitations, see the [Single-leader replication README](06-replication/single-leader-replication/README.md).
+
 # Learning Roadmap
 
 The repository will gradually expand with projects exploring other topics from _Designing Data-Intensive Applications_.
@@ -57,5 +59,3 @@ The book covers the following major areas:
 |12|The Future of Data Systems|
 
 The projects in this repository are developed incrementally as learning exercises, with each implementation focusing on a specific concept or group of concepts from the book.
-
-For the full architecture, implementation details, API documentation, tests, and limitations, see the [Single-leader replication README](06-replication/single-leader-replication/README.md).
