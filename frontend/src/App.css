@@ -1,3 +1,34 @@
+/* ================================
+   Global
+================================ */
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+
+/* ================================
+   Navigation
+================================ */
+
+nav {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+
+/* ================================
+   Generic Button / Counter
+================================ */
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -7,54 +38,73 @@
   border: 2px solid transparent;
   transition: border-color 0.3s;
   margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
 }
+
+.counter:hover {
+  border-color: var(--accent-border);
+}
+
+.counter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+
+/* ================================
+   Hero
+================================ */
 
 .hero {
   position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
 }
+
+.hero .base,
+.hero .framework,
+.hero .vite {
+  inset-inline: 0;
+  margin: 0 auto;
+}
+
+.hero .base {
+  width: 170px;
+  position: relative;
+  z-index: 0;
+}
+
+.hero .framework,
+.hero .vite {
+  position: absolute;
+}
+
+.hero .framework {
+  z-index: 1;
+  top: 34px;
+  height: 28px;
+  transform:
+    perspective(2000px)
+    rotateZ(300deg)
+    rotateX(44deg)
+    rotateY(39deg)
+    scale(1.4);
+}
+
+.hero .vite {
+  z-index: 0;
+  top: 107px;
+  height: 26px;
+  width: auto;
+  transform:
+    perspective(2000px)
+    rotateZ(300deg)
+    rotateX(40deg)
+    rotateY(39deg)
+    scale(0.8);
+}
+
+
+/* ================================
+   Center
+================================ */
 
 #center {
   display: flex;
@@ -63,45 +113,32 @@
   place-content: center;
   place-items: center;
   flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
 }
+
+
+/* ================================
+   Next Steps
+================================ */
 
 #next-steps {
   display: flex;
   border-top: 1px solid var(--border);
   text-align: left;
+}
 
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
+#next-steps > div {
+  flex: 1 1 0;
+  padding: 32px;
+}
 
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+#next-steps .icon {
+  margin-bottom: 16px;
+  width: 22px;
+  height: 22px;
 }
 
 #docs {
   border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
 }
 
 #next-steps ul {
@@ -110,75 +147,1081 @@
   display: flex;
   gap: 8px;
   margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
 }
+
+#next-steps ul .logo {
+  height: 18px;
+}
+
+#next-steps ul a {
+  color: var(--text-h);
+  font-size: 16px;
+  border-radius: 6px;
+  background: var(--social-bg);
+  display: flex;
+  padding: 6px 12px;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  transition: box-shadow 0.3s;
+}
+
+#next-steps ul a:hover {
+  box-shadow: var(--shadow);
+}
+
+#next-steps ul a .button-icon {
+  height: 18px;
+  width: 18px;
+}
+
+
+/* ================================
+   Spacer
+================================ */
 
 #spacer {
   height: 88px;
   border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
 }
+
+
+/* ================================
+   Ticks
+================================ */
 
 .ticks {
   position: relative;
   width: 100%;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
+.ticks::before,
+.ticks::after {
+  content: '';
+  position: absolute;
+  top: -4.5px;
+  border: 5px solid transparent;
+}
+
+.ticks::before {
+  left: 0;
+  border-left-color: var(--border);
+}
+
+.ticks::after {
+  right: 0;
+  border-right-color: var(--border);
+}
+
+
+/* ================================
+   Data Operations
+================================ */
+
+.operations-container {
+  margin-top: 2rem;
+}
+
+
+/* ================================
+   Write / Read Cards Container
+================================ */
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+
+  padding: 1.5rem;
+
+  border: 1px solid #444;
+  border-radius: 12px;
+
+  margin-top: 1rem;
+}
+
+
+/* ================================
+   Write / Read Card
+================================ */
+
+.operation-card {
+  padding: 1.5rem;
+
+  border: 1px solid #555;
+  border-radius: 10px;
+
+  background: #111;
+  color: white;
+}
+
+
+/* ================================
+   Operation Panel
+================================ */
+
+.operation-panel {
+  border: 1px solid white;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.operation-panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.operation-panel label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.operation-panel input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem;
+}
+
+.operation-panel button {
+  padding: 0.75rem 1rem;
+}
+
+
+/* ================================
+   Read Result
+================================ */
+
+.read-result {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid white;
+}
+
+
+/* ================================
+   Replication Activity
+================================ */
+
+.operation-activity {
+  width: 100%;
+  box-sizing: border-box;
+
+  margin-top: 32px;
+  padding: 24px;
+
+  border: 1px solid #333;
+  border-radius: 12px;
+
+  background: #111;
+  color: white;
+}
+
+
+/* ================================
+   Replication Activity Header
+================================ */
+
+.operation-activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.operation-activity-header h2 {
+  margin: 0 0 8px;
+}
+
+.operation-activity-header p {
+  margin: 0;
+  color: #aaa;
+}
+
+
+/* ================================
+   Operation Summary
+================================ */
+
+.operation-summary {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  padding: 12px 16px;
+
+  border: 1px solid #444;
+  border-radius: 8px;
+
+  background: #1b1b1b;
+}
+
+
+/* ================================
+   Node Activity Grid
+================================ */
+
+/*
+   IMPORTANT:
+   This is what puts the three nodes
+   side-by-side.
+
+   Desktop:
+   node-1 | node-2 | node-3
+*/
+
+.node-activity-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 16px;
+
+  width: 100%;
+}
+
+
+/* ================================
+   Node Activity Card
+================================ */
+
+.node-activity-card {
+  min-width: 0;
+
+  padding: 20px;
+
+  border: 1px solid #555;
+  border-radius: 10px;
+
+  background: transparent;
+  color: white;
+
+  box-sizing: border-box;
+}
+
+
+/* ================================
+   Leader Node Card
+================================ */
+
+.node-activity-card.leader {
+  background: white;
+  color: black;
+
+  border: 2px solid white;
+}
+
+
+/* ================================
+   Node Header
+================================ */
+
+.node-activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 12px;
+
+  margin-bottom: 16px;
+}
+
+.node-activity-header h3 {
+  margin: 0 0 6px;
+
+  font-size: 20px;
+}
+
+
+/* ================================
+   Node Role
+================================ */
+
+.node-role {
+  display: inline-block;
+
+  font-size: 11px;
+  font-weight: bold;
+
+  letter-spacing: 1px;
+}
+
+.leader-role {
+  color: black;
+}
+
+.follower-role {
+  color: white;
+}
+
+
+/* ================================
+   Leader Badge
+================================ */
+
+.leader-badge {
+  padding: 4px 8px;
+
+  border-radius: 5px;
+
+  background: black;
+  color: white;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+
+/* ================================
+   Node Status
+================================ */
+
+.node-status {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  margin-bottom: 20px;
+
+  font-size: 14px;
+}
+
+
+/* ================================
+   Status Dot
+================================ */
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+
+  border-radius: 50%;
+
+  background: #777;
+
+  flex-shrink: 0;
+}
+
+.status-dot.running {
+  background: #22c55e;
+}
+
+
+/* ================================
+   Node Details
+================================ */
+
+.node-details {
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 14px 0;
+
+  border-top: 1px solid #444;
+  border-bottom: 1px solid #444;
+}
+
+
+/*
+   Leader card has a white background,
+   so use a lighter divider.
+*/
+
+.node-activity-card.leader .node-details {
+  border-color: #ccc;
+}
+
+
+/* ================================
+   Individual Node Detail
+================================ */
+
+.node-detail {
+  display: flex;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  font-size: 14px;
+}
+
+.node-detail span {
+  opacity: 0.65;
+}
+
+.node-detail strong {
+  text-align: right;
+}
+
+
+/* ================================
+   Node Operation
+================================ */
+
+.node-operation {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  margin-top: 16px;
+  padding: 12px;
+
+  border-radius: 8px;
+
+  background: #252525;
+}
+
+
+/*
+   Leader operation box.
+*/
+
+.node-activity-card.leader .node-operation {
+  background: #eee;
+}
+
+
+.node-operation strong {
+  font-size: 14px;
+}
+
+.node-operation span {
+  font-family: monospace;
+
+  font-size: 13px;
+
+  word-break: break-word;
+}
+
+
+/* ================================
+   Empty Replication Activity
+================================ */
+
+.operation-activity-empty {
+  padding: 32px;
+
+  border: 1px dashed #555;
+  border-radius: 8px;
+
+  text-align: center;
+
+  color: #aaa;
+}
+
+
+/* ================================
+   Replica Grid
+================================ */
+
+.replica-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 1rem;
+}
+
+.replica-card {
+  border: 2px solid white;
+  border-radius: 12px;
+
+  padding: 1.5rem;
+}
+
+.replica-card.leader {
+  background: white;
+  color: black;
+}
+
+
+/* ================================
+   Responsive Layout
+================================ */
+
+/*
+   Desktop:
+   ┌─────────┐ ┌─────────┐ ┌─────────┐
+   │ Node 1  │ │ Node 2  │ │ Node 3  │
+   └─────────┘ └─────────┘ └─────────┘
+*/
+
+
+/*
+   Medium screens:
+   ┌─────────┐ ┌─────────┐
+   │ Node 1  │ │ Node 2  │
+   └─────────┘ └─────────┘
+
+   ┌─────────┐
+   │ Node 3  │
+   └─────────┘
+*/
+
+@media (max-width: 900px) {
+  .node-activity-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+  .replica-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
+
+  .operation-activity-header {
+    flex-direction: column;
   }
+
+  .operation-summary {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+
+/*
+   Small screens:
+   ┌─────────┐
+   │ Node 1  │
+   └─────────┘
+
+   ┌─────────┐
+   │ Node 2  │
+   └─────────┘
+
+   ┌─────────┐
+   │ Node 3  │
+   └─────────┘
+*/
+
+@media (max-width: 600px) {
+  main {
+    padding: 1rem;
+  }
+
+  .operations-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .node-activity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .replica-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operation-activity {
+    padding: 16px;
+  }
+
+  .operation-activity-header {
+    gap: 16px;
+  }
+
+  #next-steps {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  #next-steps > div {
+    padding: 24px 20px;
+  }
+
+  #docs {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #next-steps ul {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  #next-steps ul li {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  #next-steps ul a {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  #center {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+
+  #spacer {
+    height: 48px;
+  }
+}
+
+/* ========================================
+   DATA OPERATIONS PAGE
+======================================== */
+
+.data-operations-page {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+
+/* ========================================
+   PAGE HEADING
+======================================== */
+
+.data-operations-heading {
+  margin-bottom: 24px;
+}
+
+.data-operations-heading h1 {
+  margin-bottom: 8px;
+}
+
+.data-operations-heading p {
+  margin: 0;
+}
+
+
+/* ========================================
+   SUCCESS / ERROR MESSAGE
+======================================== */
+
+.operation-message {
+  margin-bottom: 24px;
+  padding: 12px 16px;
+
+  border: 1px solid #555;
+  border-radius: 8px;
+
+  background: #1b1b1b;
+  color: white;
+}
+
+
+/* ========================================
+   WRITE / READ SECTION
+======================================== */
+
+.operations-section {
+  width: 100%;
+  margin-bottom: 32px;
+
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  border: 1px solid #444;
+  border-radius: 16px;
+
+  background: #0f0f0f;
+}
+
+
+/* ========================================
+   WRITE / READ CARDS
+======================================== */
+
+.operation-cards {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 24px;
+
+  width: 100%;
+}
+
+
+/* ========================================
+   INDIVIDUAL WRITE / READ CARD
+======================================== */
+
+.operation-card {
+  min-width: 0;
+
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  border: 1px solid #555;
+  border-radius: 12px;
+
+  background: #1b1b1b;
+}
+
+
+/* ========================================
+   REPLICATION ACTIVITY OUTER CARD
+======================================== */
+
+.replication-activity-card {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 24px;
+
+  margin-top: 32px;
+
+  border: 1px solid #444;
+  border-radius: 16px;
+
+  background: #0f0f0f;
+  color: white;
+}
+
+
+/* ========================================
+   REPLICATION ACTIVITY HEADER
+======================================== */
+
+.replication-activity-heading {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 24px;
+
+  margin-bottom: 24px;
+}
+
+.replication-activity-heading h2 {
+  margin: 0 0 8px;
+}
+
+.replication-activity-heading p {
+  margin: 0;
+
+  color: #aaa;
+}
+
+
+/* ========================================
+   OPERATION SUMMARY
+======================================== */
+
+.operation-summary {
+  display: flex;
+
+  gap: 24px;
+
+  padding: 12px 16px;
+
+  border: 1px solid #444;
+  border-radius: 8px;
+
+  background: #1b1b1b;
+}
+
+.operation-summary div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.operation-summary span {
+  font-size: 12px;
+  color: #888;
+}
+
+.operation-summary strong {
+  font-size: 14px;
+}
+
+
+/* ========================================
+   NODE CARDS
+======================================== */
+
+/*
+   THIS IS THE IMPORTANT PART.
+
+   The three nodes are placed in a
+   three-column CSS grid.
+
+   node-1 | node-2 | node-3
+*/
+
+.node-cards {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 16px;
+
+  width: 100%;
+}
+
+
+/* ========================================
+   INDIVIDUAL NODE CARD
+======================================== */
+
+.node-card {
+  min-width: 0;
+
+  padding: 20px;
+
+  box-sizing: border-box;
+
+  border: 1px solid white;
+  border-radius: 12px;
+
+  background: transparent;
+  color: white;
+}
+
+
+/* ========================================
+   LEADER NODE
+======================================== */
+
+.node-card-leader {
+  background: white;
+  color: black;
+
+  border: 2px solid white;
+}
+
+
+/* ========================================
+   NODE HEADER
+======================================== */
+
+.node-card-header {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 12px;
+
+  margin-bottom: 20px;
+}
+
+.node-card-header h3 {
+  margin: 0 0 6px;
+
+  font-size: 20px;
+}
+
+
+/* ========================================
+   NODE ROLE
+======================================== */
+
+.node-role {
+  font-size: 11px;
+  font-weight: bold;
+
+  letter-spacing: 1px;
+
+  color: white;
+}
+
+.node-role-leader {
+  color: black;
+}
+
+
+/* ========================================
+   LEADER BADGE
+======================================== */
+
+.leader-badge {
+  padding: 5px 9px;
+
+  border-radius: 6px;
+
+  background: black;
+  color: white;
+
+  font-size: 11px;
+  font-weight: bold;
+}
+
+
+/* ========================================
+   RUNNING STATUS
+======================================== */
+
+.node-running-status {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  margin-bottom: 20px;
+
+  font-size: 14px;
+}
+
+.status-indicator {
+  width: 9px;
+  height: 9px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #777;
+}
+
+.status-running {
+  background: #22c55e;
+}
+
+
+/* ========================================
+   NODE STATE
+======================================== */
+
+.node-state {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 16px 0;
+
+  border-top: 1px solid #555;
+  border-bottom: 1px solid #555;
+}
+
+.node-card-leader .node-state {
+  border-color: #ccc;
+}
+
+
+/* ========================================
+   NODE STATE ROW
+======================================== */
+
+.node-state-row {
+  display: flex;
+
+  justify-content: space-between;
+
+  gap: 16px;
+
+  font-size: 14px;
+}
+
+.node-state-row span {
+  opacity: 0.65;
+}
+
+.node-state-row strong {
+  text-align: right;
+}
+
+
+/* ========================================
+   NODE OPERATION
+======================================== */
+
+.node-operation {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+
+  margin-top: 16px;
+
+  padding: 12px;
+
+  border-radius: 8px;
+
+  background: #252525;
+}
+
+.node-card-leader .node-operation {
+  background: #eeeeee;
+}
+
+.node-operation strong {
+  font-size: 14px;
+}
+
+.node-operation span {
+  font-family: monospace;
+
+  font-size: 13px;
+
+  word-break: break-word;
+
+  opacity: 0.8;
+}
+
+
+/* ========================================
+   MEDIUM SCREEN
+======================================== */
+
+@media (max-width: 900px) {
+
+  .node-cards {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .replication-activity-heading {
+    flex-direction: column;
+  }
+
+  .operation-summary {
+    width: 100%;
+
+    box-sizing: border-box;
+  }
+
+}
+
+
+/* ========================================
+   MOBILE
+======================================== */
+
+@media (max-width: 600px) {
+
+  .operation-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .node-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-section {
+    padding: 16px;
+  }
+
+  .replication-activity-card {
+    padding: 16px;
+  }
+
 }

@@ -339,12 +339,25 @@ class Cluster:
             
     def get_node_states(self) -> dict[str, NodeInfo]:
         """
-        Return the latest known state of every node, including removed nodes.
+        Return the latest state of every node.
 
-        This method does not query node processes. It returns the cluster's
-        latest known snapshot.
+        Active nodes are queried directly so that their state is fresh.
+        Removed nodes use their last known historical state.
         """
-        return dict(self._node_history)
+
+        # Refresh the state of all currently active nodes.
+        active_states = self.get_active_node_states()
+
+        # Start with the refreshed active states.
+        states = dict(active_states)
+
+        # Add removed/inactive nodes using their historical state.
+        for node_id in self._all_node_ids:
+            if node_id not in self._active_node_ids:
+                if node_id in self._node_history:
+                    states[node_id] = self._node_history[node_id]
+
+        return states
     
     def get_active_node_states(self) -> dict[str, NodeInfo]:
         """
@@ -469,8 +482,8 @@ class Cluster:
         return max(
             running_states,
             key=lambda state: (
-            state.last_applied_index,
-            state.node_id,
+                state.last_applied_index,
+                state.node_id,
             ),
         ).node_id
     

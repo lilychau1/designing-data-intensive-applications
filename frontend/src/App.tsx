@@ -1,8 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
-import type { ClusterEvent } from "./types/events";
+import type {
+  ClusterEvent,
+} from "./types/events";
+
+import type {
+  NodeInfo,
+} from "./types/cluster";
+
 import ClusterView from "./components/ClusterView";
 import EventTimeline from "./components/EventTimeline";
+
+import DataOperationsPage from "./pages/DataOperationsPage";
 
 import {
   getClusterStatus,
@@ -10,210 +23,310 @@ import {
   restartNode,
 } from "./api/ClusterApi";
 
-import type { NodeInfo } from "./types/cluster";
-
 function App() {
-  const [leaderId, setLeaderId] = useState<string | null>(null);
-  const [nodes, setNodes] = useState<NodeInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<ClusterEvent[]>([]);
+  const [page, setPage] = useState<
+    "cluster" | "data"
+  >("cluster");
 
-  const refreshCluster = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const [leaderId, setLeaderId] =
+    useState<string | null>(null);
 
+  const [nodes, setNodes] =
+    useState<NodeInfo[]>([]);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [events, setEvents] =
+    useState<ClusterEvent[]>([]);
+
+  /*
+   * Refresh cluster state from backend.
+   */
+  const refreshCluster =
+    useCallback(async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const clusterStatus =
+          await getClusterStatus();
+
+        setLeaderId(
+          clusterStatus.leader_id
+        );
+
+        setNodes(
+          clusterStatus.nodes
+        );
+      } catch (error) {
+        console.error(
+          "Failed to refresh cluster:",
+          error
+        );
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Failed to refresh cluster"
+        );
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+  /*
+   * Remove node.
+   */
+  async function handleRemoveNode(
+    nodeId: string
+  ) {
     try {
-      const clusterStatus = await getClusterStatus();
+      const previousLeaderId =
+        leaderId;
 
-      setLeaderId(clusterStatus.leader_id);
-      setNodes(clusterStatus.nodes);
-    } catch (error) {
-      console.error("Failed to refresh cluster:", error);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to refresh cluster"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // -------------------------------------------------------------------------
-  // Remove node
-  // -------------------------------------------------------------------------
-
-  const handleRemoveNode = async (nodeId: string) => {
-    try {
-      // Remember the leader before removing the node.
-      const previousLeaderId = leaderId;
-
-      // Remove the node.
       await removeNode(nodeId);
 
-      // Fetch the new cluster state.
-      const status = await getClusterStatus();
+      const status =
+        await getClusterStatus();
 
-      const newLeaderId = status.leader_id;
+      const newLeaderId =
+        status.leader_id;
 
-      // Update UI immediately.
-      setNodes(status.nodes);
-      setLeaderId(newLeaderId);
+      setNodes(
+        status.nodes
+      );
 
-      // Add events.
-      setEvents((previousEvents) => {
-        const newEvents: ClusterEvent[] = [
-          ...previousEvents,
+      setLeaderId(
+        newLeaderId
+      );
 
-          {
-            id: crypto.randomUUID(),
-            type: "node_removed",
-            nodeId,
-            message: `Node ${nodeId} was removed from the cluster.`,
-            timestamp: new Date().toISOString(),
-          },
-        ];
+      setEvents(
+        (previousEvents) => {
+          const newEvents: ClusterEvent[] = [
+            ...previousEvents,
 
-        // Detect leader change.
-        if (previousLeaderId !== newLeaderId) {
-          if (newLeaderId) {
+            {
+              id: crypto.randomUUID(),
+              type: "node_removed",
+              nodeId,
+              message:
+                `Node ${nodeId} was removed from the cluster.`,
+              timestamp:
+                new Date().toISOString(),
+            },
+          ];
+
+          if (
+            previousLeaderId !== null &&
+            previousLeaderId !==
+              newLeaderId
+          ) {
             newEvents.push({
               id: crypto.randomUUID(),
               type: "leader_elected",
-              nodeId: newLeaderId,
-              message: previousLeaderId
-                ? `Leader changed from ${previousLeaderId} to ${newLeaderId}.`
-                : `${newLeaderId} was elected as the new leader.`,
-              timestamp: new Date().toISOString(),
-            });
-          } else if (previousLeaderId) {
-            newEvents.push({
-              id: crypto.randomUUID(),
-              type: "leader_elected",
-              nodeId: previousLeaderId,
-              message: `Leader ${previousLeaderId} was removed. No leader is currently available.`,
-              timestamp: new Date().toISOString(),
+              nodeId:
+                newLeaderId ?? "",
+              message:
+                newLeaderId
+                  ? `Leader changed from ${previousLeaderId} to ${newLeaderId}.`
+                  : `Leader ${previousLeaderId} was removed. No leader is currently available.`,
+              timestamp:
+                new Date().toISOString(),
             });
           }
-        }
 
-        return newEvents;
-      });
+          return newEvents;
+        }
+      );
     } catch (error) {
       console.error(
         `Failed to remove node ${nodeId}:`,
         error
       );
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : `Failed to remove node ${nodeId}`
-      );
     }
-  };
+  }
 
-  // -------------------------------------------------------------------------
-  // Restart node
-  // -------------------------------------------------------------------------
-
-  const handleRestartNode = async (nodeId: string) => {
+  /*
+   * Restart node.
+   */
+  async function handleRestartNode(
+    nodeId: string
+  ) {
     try {
-      // IMPORTANT:
-      // Remember who the leader was BEFORE restarting the node.
-      const previousLeaderId = leaderId;
-
-      // Restart the node.
       await restartNode(nodeId);
 
-      // IMPORTANT:
-      // Get the cluster state AFTER restarting the node.
-      const status = await getClusterStatus();
-
-      const newLeaderId = status.leader_id;
-
-      // Update the UI with the latest backend state.
-      setNodes(status.nodes);
-      setLeaderId(newLeaderId);
-
-      // Build events.
-      setEvents((previousEvents) => {
-        const newEvents: ClusterEvent[] = [
+      setEvents(
+        (previousEvents) => [
           ...previousEvents,
 
-          // Node restarted event.
           {
             id: crypto.randomUUID(),
             type: "node_restarted",
             nodeId,
-            message: `Node ${nodeId} was restarted and added back to the cluster.`,
-            timestamp: new Date().toISOString(),
+            message:
+              `Node ${nodeId} was restarted and added back to the cluster.`,
+            timestamp:
+              new Date().toISOString(),
           },
-        ];
+        ]
+      );
 
-        // Detect whether restarting the node caused a leader election.
-        if (previousLeaderId !== newLeaderId) {
-          if (newLeaderId) {
-            newEvents.push({
-              id: crypto.randomUUID(),
-              type: "leader_elected",
-              nodeId: newLeaderId,
-              message: previousLeaderId
-                ? `Leader changed from ${previousLeaderId} to ${newLeaderId}.`
-                : `${newLeaderId} was elected as the new leader.`,
-              timestamp: new Date().toISOString(),
-            });
-          } else {
-            newEvents.push({
-              id: crypto.randomUUID(),
-              type: "leader_elected",
-              nodeId: nodeId,
-              message: `Node ${nodeId} was restarted, but no leader is currently available.`,
-              timestamp: new Date().toISOString(),
-            });
-          }
-        }
-
-        return newEvents;
-      });
+      await refreshCluster();
     } catch (error) {
       console.error(
         `Failed to restart node ${nodeId}:`,
         error
       );
+    }
+  }
 
-      setError(
-        error instanceof Error
-          ? error.message
-          : `Failed to restart node ${nodeId}`
+  /*
+   * Handle a successful data operation.
+   *
+   * WRITE:
+   *   Leader -> write_direct
+   *   Followers -> write_replicated
+   *
+   * READ:
+   *   Leader -> read_operation
+   */
+  function handleDataOperation(
+    operation: "write" | "read",
+    key: string,
+    value: unknown
+  ) {
+    const timestamp =
+      new Date().toISOString();
+
+    /*
+     * READ
+     */
+    if (operation === "read") {
+      if (!leaderId) {
+        console.warn(
+          "Cannot record read event because there is no leader."
+        );
+
+        return;
+      }
+
+      const readEvent: ClusterEvent = {
+        id: crypto.randomUUID(),
+        type: "read_operation",
+        nodeId: leaderId,
+        message:
+          `Read "${key}".`,
+        timestamp,
+        key,
+        value,
+      };
+
+      console.log(
+        "[EVENT] Adding read event:",
+        readEvent
+      );
+
+      setEvents(
+        (previousEvents) => [
+          ...previousEvents,
+          readEvent,
+        ]
+      );
+
+      return;
+    }
+
+    /*
+     * WRITE
+     */
+    if (operation === "write") {
+      const writeEvents: ClusterEvent[] =
+        nodes.map((node) => {
+          const isLeader =
+            node.node_id === leaderId;
+
+          const event: ClusterEvent = {
+            id: crypto.randomUUID(),
+
+            type:
+              isLeader
+                ? "write_direct"
+                : "write_replicated",
+
+            nodeId:
+              node.node_id,
+
+            message:
+              isLeader
+                ? `Directly wrote "${key}" = ${String(value)}.`
+                : `Replicated "${key}" = ${String(value)}.`,
+
+            timestamp,
+
+            key,
+
+            value,
+          };
+
+          return event;
+        });
+
+      console.log(
+        "[EVENT] Adding write events:",
+        writeEvents
+      );
+
+      setEvents(
+        (previousEvents) => [
+          ...previousEvents,
+          ...writeEvents,
+        ]
       );
     }
-  };
+  }
 
-  // -------------------------------------------------------------------------
-  // Initial load
-  // -------------------------------------------------------------------------
-
+  /*
+   * Initial cluster load.
+   */
   useEffect(() => {
     refreshCluster();
   }, [refreshCluster]);
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-
   return (
     <main>
-      <h1>Single-Leader Replication Cluster</h1>
+      <header>
+        <h1>
+          Single-Leader Replication Cluster
+        </h1>
 
-      <button
-        onClick={refreshCluster}
-        disabled={loading}
-      >
-        {loading ? "Refreshing..." : "Refresh cluster"}
-      </button>
+        <nav>
+          <button
+            onClick={() =>
+              setPage("cluster")
+            }
+            disabled={
+              page === "cluster"
+            }
+          >
+            Cluster Overview
+          </button>
+
+          <button
+            onClick={() =>
+              setPage("data")
+            }
+            disabled={
+              page === "data"
+            }
+          >
+            Data Operations
+          </button>
+        </nav>
+      </header>
 
       {error && (
         <p role="alert">
@@ -221,14 +334,47 @@ function App() {
         </p>
       )}
 
-      <ClusterView
-        leaderId={leaderId}
-        nodes={nodes}
-        onRemoveNode={handleRemoveNode}
-        onRestartNode={handleRestartNode}
-      />
+      {page === "cluster" && (
+        <>
+          <button
+            onClick={refreshCluster}
+            disabled={loading}
+          >
+            {loading
+              ? "Refreshing..."
+              : "Refresh cluster"}
+          </button>
 
-      <EventTimeline events={events} />
+          <ClusterView
+            leaderId={leaderId}
+            nodes={nodes}
+            onRemoveNode={
+              handleRemoveNode
+            }
+            onRestartNode={
+              handleRestartNode
+            }
+          />
+
+          <EventTimeline
+            events={events}
+          />
+        </>
+      )}
+
+      {page === "data" && (
+        <DataOperationsPage
+          nodes={nodes}
+          leaderId={leaderId}
+          events={events}
+          onClusterUpdated={
+            refreshCluster
+          }
+          onDataOperation={
+            handleDataOperation
+          }
+        />
+      )}
     </main>
   );
 }
