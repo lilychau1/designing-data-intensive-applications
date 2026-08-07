@@ -62,6 +62,7 @@ class Cluster:
         
         # Route mapping for each node's inbox
         self._manager = Manager()
+        self._replication_delays = self._manager.dict()
         self._routes: dict[str, Queue] = self._manager.dict()
 
         self._events: Queue = self._manager.Queue()
@@ -143,6 +144,7 @@ class Cluster:
             target=NetworkProcess(
                 outgoing=self._outgoing, # Outgoing messages of the cluster will be sent to the outgoing queue of the network process
                 routes=self._routes, # Incoming messages for each node will be sent to their respective inboxes
+                replication_delays=self._replication_delays, # Replication delays for each node will be managed by the network process
             ).run
         )
         
@@ -641,12 +643,14 @@ class Cluster:
                 return response.value
     
     def set_node_replication_delay(self, node_id: str, delay: float) -> None:
+        if node_id not in self._active_node_ids:
+            raise ValueError(f"Node {node_id} is not active.")
+        
+        if delay < 0:
+            raise ValueError("Replication delay must be non-negative.")
+        
         self._replication_delays[node_id] = delay
 
-        self._routes[node_id].put(
-            SetReplicationDelayMessage(delay=delay)
-        )
-        
     def get_events(self) -> list[ClusterEvent]:
         """
         Retrieve all events from the cluster's event queue.
