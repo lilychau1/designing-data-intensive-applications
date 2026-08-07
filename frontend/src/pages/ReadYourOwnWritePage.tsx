@@ -244,10 +244,12 @@ function ReadYourOwnWritePage({
 
   return (
     <main className="read-your-own-write-page">
-      <header className="data-operations-heading">
-        <h1>
-          Mitigating Replication Lag — Reading Your Own Write
-        </h1>
+      <header className="lag-page-heading">
+        <p className="lag-page-eyebrow">
+          Mitigating Replication Lag
+        </p>
+
+        <h1>1: Reading Your Own Write</h1>
 
         <p>
           Compare a direct read from a lagging replica with a
@@ -255,7 +257,7 @@ function ReadYourOwnWritePage({
         </p>
       </header>
 
-      <section className="operation-panel">
+      <section className="operation-panel demo-controls">
         <div className="demo-control-row">
           <label htmlFor="read-your-own-write-value">
             Value to write
