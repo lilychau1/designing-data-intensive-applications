@@ -12,6 +12,8 @@ import {
   restartNode,
 } from "../api/ClusterApi";
 
+import { sortNodes } from "../utils/sortNodes";
+
 interface ClusterPageProps {
   onEvent: (event: ClusterEvent) => void;
 }
@@ -31,7 +33,7 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
       const clusterStatus = await getClusterStatus();
 
       setLeaderId(clusterStatus.leader_id);
-      setNodes(clusterStatus.nodes);
+      setNodes(sortNodes(clusterStatus.nodes));
     } catch (error) {
       console.error("Failed to refresh cluster:", error);
 
@@ -67,7 +69,7 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
 
       const newLeaderId = status.leader_id;
 
-      setNodes(status.nodes);
+      setNodes(sortNodes(status.nodes));
       setLeaderId(newLeaderId);
 
       // Record node removal.
@@ -119,7 +121,7 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
 
       const newLeaderId = status.leader_id;
 
-      setNodes(status.nodes);
+      setNodes(sortNodes(status.nodes));
       setLeaderId(newLeaderId);
 
       // Record restart event.

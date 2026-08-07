@@ -25,6 +25,8 @@ import {
   restartNode,
 } from "./api/ClusterApi";
 
+import { sortNodes } from "./utils/sortNodes";
+
 function App() {
   const [page, setPage] = useState<
     "cluster" | "data"
@@ -62,7 +64,7 @@ function App() {
         );
 
         setNodes(
-          clusterStatus.nodes
+          sortNodes(clusterStatus.nodes)
         );
       } catch (error) {
         console.error(
@@ -114,7 +116,7 @@ function App() {
         status.leader_id;
 
       setNodes(
-        status.nodes
+        sortNodes(status.nodes)
       );
 
       setLeaderId(

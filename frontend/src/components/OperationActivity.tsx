@@ -120,39 +120,39 @@ function OperationActivity({
                   </span>
 
                   <span>
-                    {node.replication_delay.toFixed(1)} seconds
+                    {delay.toFixed(1)} seconds
                   </span>
                 </div>
               </div>
 
               <div className="node-replication-delay-control">
                 <label htmlFor={`replication-delay-${node.node_id}`}>
-                  Replication delay: {(node.replication_delay ?? 0).toFixed(1)} seconds
+                  Replication delay: {(delay ?? 0).toFixed(1)} seconds
                 </label>
 
-                <input
-                  id={`replication-delay-${node.node_id}`}
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={delay}
-                  disabled={node.node_id === leaderId}
-                  onChange={(event) => {
-                    const nextDelay = Number(event.target.value);
+              <input
+                id={`replication-delay-${node.node_id}`}
+                type="range"
+                min="0"
+                max="5"
+                step="0.1"
+                value={delay}
+                disabled={node.node_id === leaderId}
+                onChange={(event) => {
+                  const nextDelay = Number(event.target.value);
 
-                    setDraftDelays((current) => ({
-                      ...current,
-                      [node.node_id]: nextDelay,
-                    }));
-                  }}
-                  onPointerUp={(event) => {
-                    void onReplicationDelayChange(
-                      node.node_id,
-                      Number(event.currentTarget.value)
-                    );
-                  }}
-                />
+                  setDraftDelays((current) => ({
+                    ...current,
+                    [node.node_id]: nextDelay,
+                  }));
+                }}
+                onPointerUp={(event) => {
+                  void onReplicationDelayChange(
+                    node.node_id,
+                    Number(event.currentTarget.value)
+                  );
+                }}
+              />
               </div>
               
               {/* Current operation */}
