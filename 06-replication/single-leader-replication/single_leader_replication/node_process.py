@@ -5,7 +5,6 @@ Node process for handling incoming requests and managing the node's state.
 """
 
 from multiprocessing import Queue
-import time
 from datetime import datetime, timezone
 
 from single_leader_replication.node import Node
@@ -100,9 +99,6 @@ class NodeProcess:
             message (AppendEntryMessage): The incoming message to handle.
         """
         if isinstance(message, AppendEntryMessage):
-
-            if self._replication_delay > 0:
-                time.sleep(self._replication_delay)
 
             self._node.receive_log_entry(
                 message.log_entry
