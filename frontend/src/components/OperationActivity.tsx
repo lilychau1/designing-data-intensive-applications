@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { NodeInfo } from "../types/cluster";
 import type { ClusterEvent } from "../types/events";
 
@@ -8,6 +10,10 @@ interface OperationActivityProps {
   operationKey: string;
   value: unknown;
   events: ClusterEvent[];
+  onReplicationDelayChange: (
+    nodeId: string, 
+    delay: number
+  ) => Promise<void>;
 }
 
 function OperationActivity({
@@ -17,7 +23,13 @@ function OperationActivity({
   operationKey,
   value,
   events,
+  onReplicationDelayChange,
 }: OperationActivityProps) {
+
+  const [draftDelays, setDraftDelays] = useState<
+    Record<string, number>
+  >({});
+
   return (
     <section className="replication-activity-card">
       <div
@@ -37,6 +49,10 @@ function OperationActivity({
               (event) =>
                 event.nodeId === node.node_id
             );
+          const delay =
+            draftDelays[node.node_id] ?? 
+            node.replication_delay ?? 
+            0;
 
           return (
             <article
@@ -109,6 +125,36 @@ function OperationActivity({
                 </div>
               </div>
 
+              <div className="node-replication-delay-control">
+                <label htmlFor={`replication-delay-${node.node_id}`}>
+                  Replication delay: {(node.replication_delay ?? 0).toFixed(1)} seconds
+                </label>
+
+                <input
+                  id={`replication-delay-${node.node_id}`}
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={delay}
+                  disabled={node.node_id === leaderId}
+                  onChange={(event) => {
+                    const nextDelay = Number(event.target.value);
+
+                    setDraftDelays((current) => ({
+                      ...current,
+                      [node.node_id]: nextDelay,
+                    }));
+                  }}
+                  onPointerUp={(event) => {
+                    void onReplicationDelayChange(
+                      node.node_id,
+                      Number(event.currentTarget.value)
+                    );
+                  }}
+                />
+              </div>
+              
               {/* Current operation */}
               <div className="node-operation">
                 {operation === "write" ? (

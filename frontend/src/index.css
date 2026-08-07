@@ -284,3 +284,13 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+.node-replication-delay-control {
+  display: grid;
+  gap: 0.4rem;
+  margin: 1rem 0;
+}
+
+.node-replication-delay-control input[type="range"] {
+  width: 100%;
+}

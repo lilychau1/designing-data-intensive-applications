@@ -10,6 +10,7 @@ from multiprocessing import Queue, Process, Manager
 import uuid
 from typing import Any
 import queue
+from threading import Lock
 
 from single_leader_replication.config import Config
 from single_leader_replication.node_process import NodeProcess
@@ -94,6 +95,8 @@ class Cluster:
                 last_applied_index=0,
                 replication_delay=self._replication_delays.get(node_id, 0.0), 
             )
+            
+        self._state_query_lock = Lock()
         
 
     def configure_followers(self) -> None:
@@ -380,54 +383,54 @@ class Cluster:
         Returns:
             A dictionary mapping active node IDs to their latest state.
         """
+        with self._state_query_lock:
+            request_id = str(uuid.uuid4())
 
-        request_id = str(uuid.uuid4())
+            states: dict[str, NodeInfo] = {}
 
-        states: dict[str, NodeInfo] = {}
+            active_node_ids = list(self._active_node_ids)
 
-        active_node_ids = list(self._active_node_ids)
-
-        for node_id in active_node_ids:
-            self._routes[node_id].put(
-                GetNodeStateRequestMessage(
-                    request_id=request_id,
-                )
-            )
-
-        while len(states) < len(active_node_ids):
-            try:
-                response: GetNodeStateResponseMessage = (
-                    self._state_responses.get(timeout=5)
-                )
-            except queue.Empty:
-                raise RuntimeError(
-                    "Timed out waiting for node state responses. "
-                    f"Received {len(states)} of {len(active_node_ids)} responses."
+            for node_id in active_node_ids:
+                self._routes[node_id].put(
+                    GetNodeStateRequestMessage(
+                        request_id=request_id,
+                    )
                 )
 
-            if response.request_id != request_id:
-                continue
+            while len(states) < len(active_node_ids):
+                try:
+                    response: GetNodeStateResponseMessage = (
+                        self._state_responses.get(timeout=5)
+                    )
+                except queue.Empty:
+                    raise RuntimeError(
+                        "Timed out waiting for node state responses. "
+                        f"Received {len(states)} of {len(active_node_ids)} responses."
+                    )
 
-            process = self._processes[response.node_id]
+                if response.request_id != request_id:
+                    continue
 
-            state = NodeInfo(
-                node_id=response.node_id,
-                role=response.role,
-                status=(
-                    NodeStatus.RUNNING
-                    if process.is_alive()
-                    else NodeStatus.STOPPED
-                ),
-                last_applied_index=response.last_applied_index,
-                replication_delay=self._replication_delays.get(response.node_id, 0.0), 
-            )
+                process = self._processes[response.node_id]
 
-            states[response.node_id] = state
+                state = NodeInfo(
+                    node_id=response.node_id,
+                    role=response.role,
+                    status=(
+                        NodeStatus.RUNNING
+                        if process.is_alive()
+                        else NodeStatus.STOPPED
+                    ),
+                    last_applied_index=response.last_applied_index,
+                    replication_delay=self._replication_delays.get(response.node_id, 0.0), 
+                )
 
-            # Update latest known state.
-            self._node_history[response.node_id] = state
+                states[response.node_id] = state
 
-        return states
+                # Update latest known state.
+                self._node_history[response.node_id] = state
+
+            return states
 
 
     def get_node_state(self, node_id: str) -> NodeInfo:
