@@ -10,7 +10,9 @@ import {
   getClusterStatus,
   removeNode,
   restartNode,
-} from "../api/clusterApi";
+} from "../api/ClusterApi";
+
+import { sortNodes } from "../utils/sortNodes";
 
 interface ClusterPageProps {
   onEvent: (event: ClusterEvent) => void;
@@ -31,7 +33,7 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
       const clusterStatus = await getClusterStatus();
 
       setLeaderId(clusterStatus.leader_id);
-      setNodes(clusterStatus.nodes);
+      setNodes(sortNodes(clusterStatus.nodes));
     } catch (error) {
       console.error("Failed to refresh cluster:", error);
 
@@ -45,7 +47,7 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
     }
   }, []);
 
-  const addEvent = useCallback(
+  const handleEvent = useCallback(
     (event: ClusterEvent) => {
       setEvents((previousEvents) => [
         ...previousEvents,
@@ -67,11 +69,11 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
 
       const newLeaderId = status.leader_id;
 
-      setNodes(status.nodes);
+      setNodes(sortNodes(status.nodes));
       setLeaderId(newLeaderId);
 
       // Record node removal.
-      addEvent({
+      handleEvent({
         id: crypto.randomUUID(),
         type: "node_removed",
         nodeId,
@@ -84,7 +86,7 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
         previousLeaderId !== null &&
         previousLeaderId !== newLeaderId
       ) {
-        addEvent({
+        handleEvent({
           id: crypto.randomUUID(),
           type: "leader_elected",
           nodeId: newLeaderId ?? "",
@@ -119,11 +121,11 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
 
       const newLeaderId = status.leader_id;
 
-      setNodes(status.nodes);
+      setNodes(sortNodes(status.nodes));
       setLeaderId(newLeaderId);
 
       // Record restart event.
-      addEvent({
+      handleEvent({
         id: crypto.randomUUID(),
         type: "node_restarted",
         nodeId,
@@ -137,7 +139,7 @@ function ClusterPage({ onEvent }: ClusterPageProps) {
         previousLeaderId !== newLeaderId &&
         newLeaderId !== null
       ) {
-        addEvent({
+        handleEvent({
           id: crypto.randomUUID(),
           type: "leader_elected",
           nodeId: newLeaderId,

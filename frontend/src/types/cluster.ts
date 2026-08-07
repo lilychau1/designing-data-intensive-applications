@@ -12,6 +12,7 @@ export interface NodeInfo {
   role: NodeRole;
   status: NodeStatus;
   last_applied_index: number;
+  replication_delay: number;
 }
 
 export interface NodeStatusResponse {

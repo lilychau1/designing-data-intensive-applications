@@ -67,6 +67,16 @@ export default function NodeCard({
             {node.last_applied_index}
           </span>
         </div>
+
+        <div className="node-card-info-row">
+          <span className="node-card-label">
+            Replication delay
+          </span>
+
+          <span>
+            {node.replication_delay.toFixed(1)} seconds
+          </span>
+        </div>
       </div>
 
       <div className="node-card-actions">

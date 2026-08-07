@@ -73,3 +73,21 @@ export async function restartNode(
 
   return response.json();
 }
+
+export async function setNodeReplicationDelay(
+  nodeId: string,
+  delay: number
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/cluster/nodes/${encodeURIComponent(
+      nodeId
+    )}/set-replication-delay?delay=${delay}`,
+    {
+      method: 'POST'
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to set replication delay for node ${nodeId}`);
+  }
+}

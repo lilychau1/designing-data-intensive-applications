@@ -19,8 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from single_leader_replication.models import (
     SetRequest, 
     ValueResponse, 
+    WriteResponse, 
     NodeStatusResponse, 
     NodeInfo,
+    ClusterEvent, 
 )
 from single_leader_replication.cluster import Cluster
 from single_leader_replication.config import Config
@@ -60,12 +62,11 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Leader API
 # ---------------------------------------------------------------------------
-
 @app.post(
     '/set',
-    response_model=ValueResponse,
+    response_model=WriteResponse,
 )
-def set_value(request: SetRequest) -> ValueResponse:
+def set_value(request: SetRequest) -> WriteResponse:
     """
     Write a key-value pair through the current leader.
     """
@@ -78,18 +79,28 @@ def set_value(request: SetRequest) -> ValueResponse:
             detail='No leader available',
         )
 
-    cluster.write(
+    response = cluster.write(
         request.key,
         request.value,
     )
 
-    return ValueResponse(
+    return WriteResponse(
         node_id=leader_id,
-        key=request.key,
-        value=request.value,
+        key=response.key,
+        value=response.value,
+        events=[
+            ClusterEvent(
+                node_id=e.node_id,
+                event_type=e.event_type,
+                timestamp=e.timestamp,
+                key=e.key,
+                value=e.value,
+                message=e.message,
+            )
+            for e in response.events
+        ],
     )
-
-
+    
 @app.get(
     '/get/{key}',
     response_model=ValueResponse,
@@ -164,7 +175,8 @@ def get_cluster_status() -> NodeStatusResponse:
             node_id=node_id,
             role=state.role,
             status=state.status,
-            last_applied_index=state.last_applied_index
+            last_applied_index=state.last_applied_index, 
+            replication_delay=state.replication_delay, 
         )
         for node_id, state in states.items()
     ]
@@ -186,7 +198,8 @@ def get_active_nodes_states() -> NodeStatusResponse:
             node_id=node_id,
             role=state.role,
             status=state.status,
-            last_applied_index=state.last_applied_index
+            last_applied_index=state.last_applied_index, 
+            replication_delay=state.replication_delay,
         )
         for node_id, state in states.items()
     ]
@@ -241,7 +254,8 @@ def get_node_state(node_id: str) -> NodeInfo:
         node_id=node_id,
         role=state.role,
         status=state.status,
-        last_applied_index=state.last_applied_index
+        last_applied_index=state.last_applied_index, 
+        replication_delay=state.replication_delay,
     )
     
 @app.post(
@@ -265,3 +279,31 @@ def restart_node_in_cluster(node_id: str) -> NodeStatusResponse:
         leader_id=cluster.leader_id,
         nodes=list(cluster.get_node_states().values()),
     )
+    
+@app.post(
+    '/cluster/nodes/{node_id}/set-replication-delay',
+    response_model=NodeStatusResponse,
+)
+def set_node_replication_delay(node_id: str, delay: float) -> NodeStatusResponse:
+    """
+    Set the replication delay for a specific node in the cluster.
+    """
+    try:
+        cluster.set_node_replication_delay(node_id, delay)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return NodeStatusResponse(
+        leader_id=cluster.leader_id,
+        nodes=list(cluster.get_node_states().values()),
+    )
+    
+@app.get('/events', response_model=list[ClusterEvent])
+def get_events() -> list[ClusterEvent]:
+    """
+    Get a list of all events that have occurred in the cluster.
+    """
+    return cluster.get_events()

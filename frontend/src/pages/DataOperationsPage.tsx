@@ -7,7 +7,10 @@ import OperationActivity from "../components/OperationActivity";
 import {
   writeData,
   readFromLeader,
+  toClusterEvent,
 } from "../api/DataApi";
+
+import { setNodeReplicationDelay } from "../api/ClusterApi";
 
 import type { NodeInfo } from "../types/cluster";
 import type { ClusterEvent } from "../types/events";
@@ -17,6 +20,9 @@ interface DataOperationsPageProps {
   leaderId: string | null;
   events: ClusterEvent[];
   onClusterUpdated: () => Promise<void>;
+
+  onEvent: (event: ClusterEvent) => void;
+
   onDataOperation: (
     operation: "write" | "read",
     key: string,
@@ -29,6 +35,7 @@ function DataOperationsPage({
   leaderId,
   events,
   onClusterUpdated,
+  onEvent,
   onDataOperation,
 }: DataOperationsPageProps) {
   const [writeLoading, setWriteLoading] =
@@ -63,31 +70,29 @@ function DataOperationsPage({
         );
       }
 
-      await writeData(
+      const response = await writeData(
         key,
         value
       );
+
+      console.log("WRITE RESPONSE:", response);
+
+      response.events.forEach((event) => {
+        onEvent(toClusterEvent(event));
+      });
 
       setLastOperation("write");
       setLastOperationKey(key);
       setLastOperationValue(value);
-
-      onDataOperation(
-        "write",
-        key,
-        value
-      );
 
       await onClusterUpdated();
 
       setMessage(
         `Successfully wrote "${key} = ${value}" through ${leaderId}.`
       );
+
     } catch (error) {
-      console.error(
-        "Failed to write data:",
-        error
-      );
+      console.error("Failed to write data:", error);
 
       setMessage(
         error instanceof Error
@@ -143,6 +148,26 @@ function DataOperationsPage({
       return null;
     } finally {
       setReadLoading(false);
+    }
+  }
+
+  async function handleSetReplicationDelay(
+    nodeId: string,
+    delay: number
+  ) {
+    try {
+      await setNodeReplicationDelay(nodeId, delay);
+      await onClusterUpdated();
+
+      setMessage(
+        `Set replication delay for ${nodeId} to ${delay.toFixed(1)} seconds.`
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+        ? error.message
+        : `Failed to set replication delay for ${nodeId}.`
+      );
     }
   }
 
@@ -234,6 +259,7 @@ function DataOperationsPage({
           operationKey={lastOperationKey}
           value={lastOperationValue}
           events={events}
+          onReplicationDelayChange={handleSetReplicationDelay}
         />
 
       </section>
