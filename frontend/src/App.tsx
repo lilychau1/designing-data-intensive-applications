@@ -338,39 +338,73 @@ function App() {
           Single-Leader Replication Cluster
         </h1>
 
-        <nav>
+        <nav
+          className="app-navigation"
+          aria-label="Primary navigation"
+        >
           <button
+            className={
+              page === "cluster"
+                ? "app-navigation-item is-active"
+                : "app-navigation-item"
+            }
             onClick={() =>
               setPage("cluster")
             }
-            disabled={
-              page === "cluster"
+            aria-current={
+              page === "cluster" ? "page" : undefined
             }
           >
             Cluster Overview
           </button>
 
           <button
+            className={
+              page === "data"
+                ? "app-navigation-item is-active"
+                : "app-navigation-item"
+            }
             onClick={() =>
               setPage("data")
             }
-            disabled={
-              page === "data"
+            aria-current={
+              page === "data" ? "page" : undefined
             }
           >
             Data Operations
           </button>
 
-          <button
-            onClick={() =>
-              setPage("read-your-own-write")
-            }
-            disabled={
-              page === "read-your-own-write"
-            }
-          >
-            Mitigating Replication Lag 1: Reading Your Own Write
-          </button>
+          <details className="app-navigation-menu">
+            <summary
+              className={
+                page === "read-your-own-write"
+                  ? "app-navigation-item is-active"
+                  : "app-navigation-item"
+              }
+            >
+              Mitigating Replication Lag
+              <span aria-hidden="true">⌄</span>
+            </summary>
+
+            <div className="app-navigation-dropdown">
+              <button
+                className="app-navigation-dropdown-item"
+                onClick={(event) => {
+                  setPage("read-your-own-write");
+                  event.currentTarget
+                    .closest("details")
+                    ?.removeAttribute("open");
+                }}
+                aria-current={
+                  page === "read-your-own-write"
+                    ? "page"
+                    : undefined
+                }
+              >
+                1: Reading Your Own Write
+              </button>
+            </div>
+          </details>
 
         </nav>
       </header>
