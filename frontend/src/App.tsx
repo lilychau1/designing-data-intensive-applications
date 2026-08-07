@@ -16,6 +16,7 @@ import ClusterView from "./components/ClusterView";
 import EventTimeline from "./components/EventTimeline";
 
 import DataOperationsPage from "./pages/DataOperationsPage";
+import ReadYourOwnWritePage from "./pages/ReadYourOwnWritePage";
 
 import { getClusterEvents } from "./api/DataApi";
 
@@ -29,7 +30,7 @@ import { sortNodes } from "./utils/sortNodes";
 
 function App() {
   const [page, setPage] = useState<
-    "cluster" | "data"
+    "cluster" | "data" | "read-your-own-write"
   >("cluster");
 
   const [leaderId, setLeaderId] =
@@ -359,6 +360,18 @@ function App() {
           >
             Data Operations
           </button>
+
+          <button
+            onClick={() =>
+              setPage("read-your-own-write")
+            }
+            disabled={
+              page === "read-your-own-write"
+            }
+          >
+            Mitigating Replication Lag 1: Reading Your Own Write
+          </button>
+
         </nav>
       </header>
 
@@ -406,6 +419,15 @@ function App() {
           onDataOperation={handleDataOperation}
         />
       )}
+
+      {page === "read-your-own-write" && (
+        <ReadYourOwnWritePage
+          nodes={nodes}
+          leaderId={leaderId}
+          onClusterUpdated={refreshCluster}
+        />
+      )}
+
     </main>
   );
 }
