@@ -22,9 +22,11 @@ from single_leader_replication.messages import (
     WriteRequestMessage,
     ReadRequestMessage,
     ReadResponseMessage,
+    WriteResponseMessage, 
     PromoteToLeaderMessage,
+    SetReplicationDelayMessage, 
 )
-from single_leader_replication.models import NodeInfo, NodeStatus, NodeRole
+from single_leader_replication.models import NodeInfo, NodeStatus, NodeRole, ClusterEvent
 
 class Cluster:
     def __init__(self, node_configs: list[Config], leader_node_id: str | None = None) -> None:
@@ -40,7 +42,9 @@ class Cluster:
         self._all_node_ids: list[str] = list(self._node_configs.keys())
         self._active_node_ids: list[str] = list(self._node_configs.keys())
         self._node_history: dict[str, NodeInfo] = {}
-        
+
+        self._replication_delays: dict[str, float] = {}
+
         self._leader_id: str | None = leader_node_id
 
         # Create shared network
@@ -59,6 +63,8 @@ class Cluster:
         self._manager = Manager()
         self._routes: dict[str, Queue] = self._manager.dict()
 
+        self._events: Queue = self._manager.Queue()
+        
         # Register every node on the network and reset its role.
         for node_id, config in self._node_configs.items():
             inbox = self._manager.Queue()
@@ -70,6 +76,8 @@ class Cluster:
                 outgoing=self._outgoing,
                 client_responses=self._client_responses,
                 state_responses=self._state_responses,
+                event_responses=self._events,
+                replication_delay=self._replication_delays.get(node_id, 0.0)
             )
             self._workers[node_id] = worker
 
@@ -84,7 +92,9 @@ class Cluster:
                 role=NodeRole.FOLLOWER if node_id != self._leader_id else NodeRole.LEADER,
                 status=NodeStatus.STOPPED,
                 last_applied_index=0,
+                replication_delay=self._replication_delays.get(node_id, 0.0), 
             )
+        
 
     def configure_followers(self) -> None:
         """
@@ -189,6 +199,7 @@ class Cluster:
             role=NodeRole.FOLLOWER,
             status=NodeStatus.REMOVED,
             last_applied_index=final_state.last_applied_index,
+            replication_delay=self._replication_delays.get(node_id, 0.0), 
         )
         
         # Stop process.
@@ -245,6 +256,8 @@ class Cluster:
             outgoing=self._outgoing,
             client_responses=self._client_responses,
             state_responses=self._state_responses,
+            event_responses=self._events,
+            replication_delay=self._replication_delays.get(node_id, 0.0)
         )
 
         # ---------------------------------------------------------
@@ -329,6 +342,7 @@ class Cluster:
             role=new_role,
             status=NodeStatus.RUNNING,
             last_applied_index=previous_state.last_applied_index,
+            replication_delay=self._replication_delays.get(node_id, 0.0), 
         )
 
         # ---------------------------------------------------------
@@ -405,6 +419,7 @@ class Cluster:
                     else NodeStatus.STOPPED
                 ),
                 last_applied_index=response.last_applied_index,
+                replication_delay=self._replication_delays.get(response.node_id, 0.0), 
             )
 
             states[response.node_id] = state
@@ -456,6 +471,7 @@ class Cluster:
                     else NodeStatus.STOPPED
                 ),
                 last_applied_index=response.last_applied_index,
+                replication_delay=self._replication_delays.get(response.node_id, 0.0), 
             )
 
             self._node_history[node_id] = state
@@ -525,12 +541,13 @@ class Cluster:
             role=NodeRole.LEADER,
             status=NodeStatus.RUNNING,
             last_applied_index=previous_state.last_applied_index,
+            replication_delay=self._replication_delays.get(new_leader_id, 0.0), 
         )
 
         # Configure the new leader with active followers.
         self.configure_followers()
         
-    def write(self, key: str, value: any) -> None:
+    def write(self, key: str, value: any) -> WriteResponseMessage:
         """
         Write a key-value pair to the leader node.
 
@@ -540,9 +557,24 @@ class Cluster:
         """
         if self._leader_id is None:
             raise RuntimeError('No leader available to accept writes.')
+        request_id = str(uuid.uuid4())
 
-        self._routes[self._leader_id].put(WriteRequestMessage(key=key, value=value))
-    
+        self._routes[self._leader_id].put(
+            WriteRequestMessage(
+                request_id=request_id
+                , key=key
+                , value=value
+            )
+        )
+        
+        while True:
+            response: WriteResponseMessage = (
+                self._client_responses.get()
+            )
+
+            if response.request_id == request_id:
+                return response
+            
     def read(self, key: str) -> any:
         """
         Read a value from the leader node.
@@ -604,3 +636,34 @@ class Cluster:
 
             if response.request_id == request_id:
                 return response.value
+    
+    def set_node_replication_delay(self, node_id: str, delay: float) -> None:
+        self._replication_delays[node_id] = delay
+
+        self._routes[node_id].put(
+            SetReplicationDelayMessage(delay=delay)
+        )
+        
+    def get_events(self) -> list[ClusterEvent]:
+        """
+        Retrieve all events from the cluster's event queue.
+
+        Returns:
+            list: A list of events that have occurred in the cluster.
+        """
+        events = []
+        while not self._events.empty():
+            try:
+                event_raw = self._events.get_nowait()
+                event = ClusterEvent(
+                    node_id=event_raw.node_id,
+                    event_type=event_raw.event_type,
+                    timestamp=event_raw.timestamp,
+                    key=event_raw.key,
+                    value=event_raw.value,
+                    message=event_raw.message
+                )
+                events.append(event)
+            except queue.Empty:
+                break
+        return events

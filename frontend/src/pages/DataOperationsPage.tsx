@@ -7,6 +7,7 @@ import OperationActivity from "../components/OperationActivity";
 import {
   writeData,
   readFromLeader,
+  toClusterEvent,
 } from "../api/DataApi";
 
 import type { NodeInfo } from "../types/cluster";
@@ -17,6 +18,9 @@ interface DataOperationsPageProps {
   leaderId: string | null;
   events: ClusterEvent[];
   onClusterUpdated: () => Promise<void>;
+
+  onEvent: (event: ClusterEvent) => void;
+
   onDataOperation: (
     operation: "write" | "read",
     key: string,
@@ -29,6 +33,7 @@ function DataOperationsPage({
   leaderId,
   events,
   onClusterUpdated,
+  onEvent,
   onDataOperation,
 }: DataOperationsPageProps) {
   const [writeLoading, setWriteLoading] =
@@ -63,31 +68,29 @@ function DataOperationsPage({
         );
       }
 
-      await writeData(
+      const response = await writeData(
         key,
         value
       );
+
+      console.log("WRITE RESPONSE:", response);
+
+      response.events.forEach((event) => {
+        onEvent(toClusterEvent(event));
+      });
 
       setLastOperation("write");
       setLastOperationKey(key);
       setLastOperationValue(value);
-
-      onDataOperation(
-        "write",
-        key,
-        value
-      );
 
       await onClusterUpdated();
 
       setMessage(
         `Successfully wrote "${key} = ${value}" through ${leaderId}.`
       );
+
     } catch (error) {
-      console.error(
-        "Failed to write data:",
-        error
-      );
+      console.error("Failed to write data:", error);
 
       setMessage(
         error instanceof Error

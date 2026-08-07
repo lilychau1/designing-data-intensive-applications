@@ -1,5 +1,5 @@
 import type { NodeInfo } from "../types/cluster";
-import type { NodeEvent } from "../types/events";
+import type { ClusterEvent } from "../types/events";
 
 interface OperationActivityProps {
   nodes: NodeInfo[];
@@ -7,7 +7,7 @@ interface OperationActivityProps {
   operation: "write" | "read" | null;
   operationKey: string;
   value: unknown;
-  events: NodeEvent[];
+  events: ClusterEvent[];
 }
 
 function OperationActivity({
@@ -97,6 +97,16 @@ function OperationActivity({
                     {node.last_applied_index}
                   </span>
                 </div>
+                
+                <div className="node-card-info-row">
+                  <span className="node-card-label">
+                    Replication delay
+                  </span>
+
+                  <span>
+                    {node.replication_delay.toFixed(1)} seconds
+                  </span>
+                </div>
               </div>
 
               {/* Current operation */}
@@ -161,13 +171,13 @@ function OperationActivity({
                           <div className="node-event-header">
                             <strong>
                               {event.type ===
-                              "direct_write"
+                              "write_direct"
                                 ? "Directly written"
                                 : event.type ===
-                                  "replicated_write"
+                                  "write_replicated"
                                 ? "Replicated"
                                 : event.type ===
-                                  "read"
+                                  "read_operation"
                                 ? "Read"
                                 : event.type}
                             </strong>

@@ -5,6 +5,8 @@ Message model for single-leader replication system.
 """
 
 from dataclasses import dataclass
+from typing import Any
+
 from single_leader_replication.models import LogEntry
 
 @dataclass
@@ -21,6 +23,7 @@ class WriteRequestMessage:
     """
     Represents a message for a write request to the leader node.
     """
+    request_id: str
     key: str
     value: str
     
@@ -41,6 +44,28 @@ class ReadResponseMessage:
     key: str
     value: str | None
     
+@dataclass
+class NodeEventMessage:
+    """
+    Represents a message containing an event related to a node's operation.
+    """
+    node_id: str
+    event_type: str
+    timestamp: str
+    message: str
+    key: str | None = None
+    value: str | None = None
+    
+@dataclass
+class WriteResponseMessage:
+    """
+    Represents a message containing the response to a write request.
+    """
+    request_id: str
+    key: str
+    value: str
+    events: list[NodeEventMessage]
+
 @dataclass
 class PromoteToLeaderMessage:
     """
@@ -79,3 +104,11 @@ class GetNodeStateResponseMessage:
     node_id: str
     role: str
     last_applied_index: int
+    
+@dataclass
+class SetReplicationDelayMessage:
+    """
+    Represents a message to set the replication delay for a node.
+    """
+    delay: float
+

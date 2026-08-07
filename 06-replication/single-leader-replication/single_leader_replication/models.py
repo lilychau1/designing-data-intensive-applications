@@ -30,6 +30,13 @@ class ValueResponse(BaseModel):
     key: str
     value: Any
 
+class WriteResponse(ValueResponse):
+    """
+    Response returned when writing a value.
+    """
+
+    node_id: str
+    events: list["ClusterEvent"] = []
 
 class LogEntry(BaseModel):
     """
@@ -69,6 +76,7 @@ class NodeInfo(BaseModel):
     role: NodeRole
     status: NodeStatus
     last_applied_index: int
+    replication_delay: float | None = None
 
 
 class NodeStatusResponse(BaseModel):
@@ -78,3 +86,14 @@ class NodeStatusResponse(BaseModel):
 
     leader_id: str | None
     nodes: list[NodeInfo]
+    
+class ClusterEvent(BaseModel):
+    """
+    Represents an event that occurred in the cluster.
+    """
+    node_id: str
+    event_type: str
+    timestamp: str
+    key: str | None = None
+    value: Any | None = None
+    message: str | None = None
