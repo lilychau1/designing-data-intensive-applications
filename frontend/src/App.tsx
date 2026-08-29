@@ -17,6 +17,7 @@ import EventTimeline from "./components/EventTimeline";
 
 import DataOperationsPage from "./pages/DataOperationsPage";
 import ReadYourOwnWritePage from "./pages/ReadYourOwnWritePage";
+import MonotonicReadsPage from "./pages/MonotonicReadsPage"
 
 import { getClusterEvents } from "./api/DataApi";
 
@@ -30,7 +31,7 @@ import { sortNodes } from "./utils/sortNodes";
 
 function App() {
   const [page, setPage] = useState<
-    "cluster" | "data" | "read-your-own-write"
+    "cluster" | "data" | "read-your-own-write" | "monotonic-reads"
   >("cluster");
 
   const [leaderId, setLeaderId] =
@@ -403,6 +404,23 @@ function App() {
               >
                 1: Reading Your Own Write
               </button>
+              
+              <button
+                className="app-navigation-dropdown-item"
+                onClick={(event) => {
+                  setPage("monotonic-reads");
+                  event.currentTarget
+                    .closest("details")
+                    ?.removeAttribute("open");
+                }}
+                aria-current={
+                  page === "monotonic-reads"
+                    ? "page"
+                    : undefined
+                }
+              >
+                2: Monotonic Reads
+              </button>
             </div>
           </details>
 
@@ -456,6 +474,14 @@ function App() {
 
       {page === "read-your-own-write" && (
         <ReadYourOwnWritePage
+          nodes={nodes}
+          leaderId={leaderId}
+          onClusterUpdated={refreshCluster}
+        />
+      )}
+
+      {page === "monotonic-reads" && (
+        <MonotonicReadsPage
           nodes={nodes}
           leaderId={leaderId}
           onClusterUpdated={refreshCluster}
