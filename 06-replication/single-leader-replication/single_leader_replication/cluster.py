@@ -98,6 +98,10 @@ class Cluster:
             )
             
         self._state_query_lock = Lock()
+        # Reads and writes share one response queue. Keep each complete
+        # request/reply exchange exclusive so concurrent HTTP requests cannot
+        # consume one another's responses.
+        self._client_request_lock = Lock()
         
 
     def configure_followers(self) -> None:
@@ -560,25 +564,23 @@ class Cluster:
             key (str): The key to write.
             value (any): The value to write.
         """
-        if self._leader_id is None:
-            raise RuntimeError('No leader available to accept writes.')
-        request_id = str(uuid.uuid4())
+        with self._client_request_lock:
+            if self._leader_id is None:
+                raise RuntimeError('No leader available to accept writes.')
+            request_id = str(uuid.uuid4())
 
-        self._routes[self._leader_id].put(
-            WriteRequestMessage(
-                request_id=request_id
-                , key=key
-                , value=value
-            )
-        )
-        
-        while True:
-            response: WriteResponseMessage = (
-                self._client_responses.get()
+            self._routes[self._leader_id].put(
+                WriteRequestMessage(
+                    request_id=request_id
+                    , key=key
+                    , value=value
+                )
             )
 
-            if response.request_id == request_id:
-                return response
+            while True:
+                response: WriteResponseMessage = self._client_responses.get()
+                if response.request_id == request_id:
+                    return response
             
     def read(self, key: str) -> any:
         """
@@ -587,17 +589,17 @@ class Cluster:
         Args:
             key (str): The key to read.
         """
-        if self._leader_id is None:
-            raise RuntimeError('No leader available to accept reads.')
-        
-        request_id = str(uuid.uuid4())
+        with self._client_request_lock:
+            if self._leader_id is None:
+                raise RuntimeError('No leader available to accept reads.')
 
-        self._routes[self._leader_id].put(ReadRequestMessage(request_id=request_id, key=key))
-        
-        while True:
-            response: ReadResponseMessage = self._client_responses.get()
-            if response.request_id == request_id:
-                return response.value
+            request_id = str(uuid.uuid4())
+            self._routes[self._leader_id].put(ReadRequestMessage(request_id=request_id, key=key))
+
+            while True:
+                response: ReadResponseMessage = self._client_responses.get()
+                if response.request_id == request_id:
+                    return response.value
     
     def wait_for_replication(self, expected_index: int) -> None:
         """
@@ -627,20 +629,21 @@ class Cluster:
         if node_id not in self._active_node_ids:
             raise ValueError(f"Node {node_id} is not active.")
 
-        request_id = str(uuid.uuid4())
+        with self._client_request_lock:
+            request_id = str(uuid.uuid4())
 
-        self._routes[node_id].put(
-            ReadRequestMessage(
-                request_id=request_id,
-                key=key,
+            self._routes[node_id].put(
+                ReadRequestMessage(
+                    request_id=request_id,
+                    key=key,
+                )
             )
-        )
 
-        while True:
-            response: ReadResponseMessage = self._client_responses.get()
+            while True:
+                response: ReadResponseMessage = self._client_responses.get()
 
-            if response.request_id == request_id:
-                return response.value
+                if response.request_id == request_id:
+                    return response.value
     
     def set_node_replication_delay(self, node_id: str, delay: float) -> None:
         if node_id not in self._active_node_ids:

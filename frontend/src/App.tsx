@@ -17,7 +17,8 @@ import EventTimeline from "./components/EventTimeline";
 
 import DataOperationsPage from "./pages/DataOperationsPage";
 import ReadYourOwnWritePage from "./pages/ReadYourOwnWritePage";
-import MonotonicReadsPage from "./pages/MonotonicReadsPage"
+import MonotonicReadsPage from "./pages/MonotonicReadsPage";
+import ConsistentPrefixReadsPage from "./pages/ConsistentPrefixReadsPage";
 
 import { getClusterEvents } from "./api/DataApi";
 
@@ -31,7 +32,7 @@ import { sortNodes } from "./utils/sortNodes";
 
 function App() {
   const [page, setPage] = useState<
-    "cluster" | "data" | "read-your-own-write" | "monotonic-reads"
+    "cluster" | "data" | "read-your-own-write" | "monotonic-reads" | "consistent-prefix-reads"
   >("cluster");
 
   const [leaderId, setLeaderId] =
@@ -378,7 +379,9 @@ function App() {
           <details className="app-navigation-menu">
             <summary
               className={
-                page === "read-your-own-write"
+                page === "read-your-own-write" ||
+                page === "monotonic-reads" ||
+                page === "consistent-prefix-reads"
                   ? "app-navigation-item is-active"
                   : "app-navigation-item"
               }
@@ -420,6 +423,23 @@ function App() {
                 }
               >
                 2: Monotonic Reads
+              </button>
+
+              <button
+                className="app-navigation-dropdown-item"
+                onClick={(event) => {
+                  setPage("consistent-prefix-reads");
+                  event.currentTarget
+                    .closest("details")
+                    ?.removeAttribute("open");
+                }}
+                aria-current={
+                  page === "consistent-prefix-reads"
+                    ? "page"
+                    : undefined
+                }
+              >
+                3: Consistent Prefix Reads
               </button>
             </div>
           </details>
@@ -482,6 +502,14 @@ function App() {
 
       {page === "monotonic-reads" && (
         <MonotonicReadsPage
+          nodes={nodes}
+          leaderId={leaderId}
+          onClusterUpdated={refreshCluster}
+        />
+      )}
+
+      {page === "consistent-prefix-reads" && (
+        <ConsistentPrefixReadsPage
           nodes={nodes}
           leaderId={leaderId}
           onClusterUpdated={refreshCluster}
