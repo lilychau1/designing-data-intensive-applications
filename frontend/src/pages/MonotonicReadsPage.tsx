@@ -9,6 +9,10 @@ import {
     setNodeReplicationDelay,
 } from "../api/ClusterApi";
 
+import NodeReadStatusPanel, {
+    type NodeReadSnapshot,
+} from "../components/NodeReadStatusPanel";
+import { getNodeReadSnapshots } from "../utils/getNodeReadSnapshots";
 import type { NodeInfo } from "../types/cluster";
 
 interface MonotonicReadsPageProps {
@@ -51,6 +55,7 @@ interface MonotonicReadResult {
     firstValue: unknown;
     secondNodeId: string;
     secondValue: unknown;
+    nodeSnapshots: NodeReadSnapshot[];
 }
 
 function MonotonicReadsPage({
@@ -120,6 +125,7 @@ function MonotonicReadsPage({
 
             const firstRead = await readFromNode(firstReplicaId, key);
             const secondRead = await readFromNode(laggingReplicaId, key);
+            const nodeSnapshots = await getNodeReadSnapshots(nodes, key);
 
             setUnmitigatedResult({
                 key,
@@ -127,6 +133,7 @@ function MonotonicReadsPage({
                 firstValue: firstRead.value,
                 secondNodeId: laggingReplicaId,
                 secondValue: secondRead.value,
+                nodeSnapshots,
             });
         } catch (error) {
             setMessage(
@@ -158,6 +165,7 @@ function MonotonicReadsPage({
 
             const firstRead = await readFromNode(firstReplicaId, key);
             const secondRead = await readFromNode(firstReplicaId, key);
+            const nodeSnapshots = await getNodeReadSnapshots(nodes, key);
 
             setMitigatedResult({
                 key,
@@ -165,6 +173,7 @@ function MonotonicReadsPage({
                 firstValue: firstRead.value,
                 secondNodeId: firstReplicaId,
                 secondValue: secondRead.value,
+                nodeSnapshots,
             });
         } catch (error) {
             setMessage(
@@ -324,6 +333,19 @@ function MonotonicReadsPage({
                         </span>
                     </p>
 
+                    <NodeReadStatusPanel
+                        snapshots={unmitigatedResult.nodeSnapshots}
+                        keyName={unmitigatedResult.key}
+                        selectedNodeIds={[
+                            unmitigatedResult.firstNodeId,
+                            unmitigatedResult.secondNodeId,
+                        ]}
+                        readLabels={{
+                            [unmitigatedResult.firstNodeId]: "First read",
+                            [unmitigatedResult.secondNodeId]: "Second read",
+                        }}
+                    />
+
                     <p role="alert" className="replica-caution">
                         The client switched replicas and observed an older value.
                         This violates monotonic reads.
@@ -372,6 +394,15 @@ function MonotonicReadsPage({
                             {String(mitigatedResult.secondValue)}
                         </span>
                     </p>
+
+                    <NodeReadStatusPanel
+                        snapshots={mitigatedResult.nodeSnapshots}
+                        keyName={mitigatedResult.key}
+                        selectedNodeIds={[mitigatedResult.firstNodeId]}
+                        readLabels={{
+                            [mitigatedResult.firstNodeId]: "First and second read",
+                        }}
+                    />
 
                     <p className="read-your-write-success">
                         The client stayed on the same replica and did not observe

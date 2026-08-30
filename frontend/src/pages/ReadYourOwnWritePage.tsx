@@ -10,6 +10,10 @@ import {
   setNodeReplicationDelay,
 } from "../api/ClusterApi";
 
+import NodeReadStatusPanel, {
+  type NodeReadSnapshot,
+} from "../components/NodeReadStatusPanel";
+import { getNodeReadSnapshots } from "../utils/getNodeReadSnapshots";
 import type { NodeInfo } from "../types/cluster";
 
 interface ReadYourOwnWritePageProps {
@@ -31,6 +35,7 @@ interface ScenarioResult {
   nodeId: string;
   lagSeconds?: number;
   delayedReadValue?: unknown;
+  nodeSnapshots: NodeReadSnapshot[];
 }
 
 function displayValue(value: unknown): string {
@@ -129,6 +134,7 @@ function ReadYourOwnWritePage({
         selectedFollowerId,
         key
       );
+      const nodeSnapshots = await getNodeReadSnapshots(nodes, key);
 
       setUnmitigatedResult({
         key,
@@ -136,6 +142,7 @@ function ReadYourOwnWritePage({
         readValue: replicaRead.value,
         nodeId: selectedFollowerId,
         lagSeconds,
+        nodeSnapshots,
       });
       
       await wait(lagSeconds * 1000);
@@ -178,12 +185,17 @@ function ReadYourOwnWritePage({
         unmitigatedResult.nodeId,
         unmitigatedResult.key
       );
+      const nodeSnapshots = await getNodeReadSnapshots(
+        nodes,
+        unmitigatedResult.key
+      );
 
       setUnmitigatedResult((current) =>
         current
           ? {
-              ...current,
-              readValue: replicaRead.value,
+                ...current,
+                readValue: replicaRead.value,
+                nodeSnapshots,
             }
           : null
       );
@@ -215,12 +227,14 @@ function ReadYourOwnWritePage({
 
       // Read-after-write strategy: read from the leader that accepted the write.
       const leaderRead = await readFromLeader(key);
+      const nodeSnapshots = await getNodeReadSnapshots(nodes, key);
 
       setMitigatedResult({
         key,
         writtenValue: value,
         readValue: leaderRead.value,
         nodeId: leaderId,
+        nodeSnapshots,
       });
 
       setMessage(
@@ -370,6 +384,13 @@ function ReadYourOwnWritePage({
                   </span>
                 </p>
 
+                <NodeReadStatusPanel
+                  snapshots={unmitigatedResult.nodeSnapshots}
+                  keyName={unmitigatedResult.key}
+                  selectedNodeIds={[unmitigatedResult.nodeId]}
+                  readLabels={{ [unmitigatedResult.nodeId]: "Read selected here" }}
+                />
+
                 {replicaLooksStale ? (
                   <p
                     role="alert"
@@ -449,6 +470,13 @@ function ReadYourOwnWritePage({
                     {displayValue(mitigatedResult.readValue)}
                   </span>
                 </p>
+
+                <NodeReadStatusPanel
+                  snapshots={mitigatedResult.nodeSnapshots}
+                  keyName={mitigatedResult.key}
+                  selectedNodeIds={[mitigatedResult.nodeId]}
+                  readLabels={{ [mitigatedResult.nodeId]: "Read selected here" }}
+                />
 
                 <p className="read-your-write-success">
                   The leader applied the write before acknowledging it,
